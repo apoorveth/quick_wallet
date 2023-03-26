@@ -8,6 +8,7 @@ var webpack = require('webpack'),
 var { CleanWebpackPlugin } = require('clean-webpack-plugin');
 var ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
 var ReactRefreshTypeScript = require('react-refresh-typescript');
+const Dotenv = require('dotenv-webpack');
 
 const ASSET_PATH = process.env.ASSET_PATH || '/';
 
@@ -45,6 +46,13 @@ var options = {
     contentScript: path.join(__dirname, 'src', 'pages', 'Content', 'index.js'),
     devtools: path.join(__dirname, 'src', 'pages', 'Devtools', 'index.js'),
     panel: path.join(__dirname, 'src', 'pages', 'Panel', 'index.jsx'),
+    injectedScript: path.join(
+      __dirname,
+      'src',
+      'pages',
+      'Injected',
+      'index.js'
+    ),
   },
   chromeExtensionBoilerplate: {
     notHotReload: ['background', 'contentScript', 'devtools'],
@@ -214,6 +222,7 @@ var options = {
       chunks: ['panel'],
       cache: false,
     }),
+    new Dotenv(),
   ].filter(Boolean),
   infrastructureLogging: {
     level: 'info',

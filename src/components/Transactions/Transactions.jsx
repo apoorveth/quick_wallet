@@ -13,6 +13,7 @@ import 'ag-grid-enterprise';
 import 'ag-grid-community/styles/ag-grid.css'; // Core grid CSS, always needed
 import 'ag-grid-community/styles/ag-theme-alpine.css'; // Optional theme CSS
 import TransactionSimulator from './TransactionSimulator';
+import axios from 'axios';
 
 const TransactionContainer = styled.div`
   padding-left: 1rem;
@@ -60,6 +61,13 @@ const Transactions = () => {
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [simulatorTransaction, setSimulatorTransaction] = useState({});
   const [navbarSelected, setNavbarSelected] = useState(1);
+  const [walletAddress, setWalletAddress] = useState(
+    '0x1Fb8B18101194AdB78E0737b7E15087d2296dC1a'
+  );
+  const [tokenImages, setTokenImages] = useState({
+    USDT: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
+    USDC: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',
+  });
   const [navbarItems, setNavbarItems] = useState([
     {
       title: 'Transactions',
@@ -69,54 +77,144 @@ const Transactions = () => {
     },
   ]);
 
+  const timeStampFormatter = (value) => {
+    return `${new Date(value * 1000).toLocaleString()}`;
+  };
+
+  const addressFormatter = (params) => {
+    if (!params.value) {
+      return;
+    }
+    if (params.value.toLowerCase() == walletAddress.toLowerCase()) {
+      return <div style={{ color: '#7aff92' }}>{params.value}</div>;
+    }
+    return <div>{params.value}</div>;
+  };
+
   // Each Column Definition results in one Column.
   const [columnDefs, setColumnDefs] = useState([
-    { field: 'hash', filter: true },
-    { field: 'methodId', filter: true },
-    { field: 'blockNumber', filter: true },
-    { field: 'timeStamp', filter: true },
-    { field: 'from', filter: true },
-    { field: 'to', filter: true },
-    { field: 'value', filter: true },
-    { field: 'gasUsed', filter: true },
-    { field: 'nonce', filter: true },
-    { field: 'blockHash', filter: true },
-    { field: 'transactionIndex', filter: true },
-    { field: 'gas', filter: true },
-    { field: 'gasPrice', filter: true },
-    { field: 'isError', filter: true },
-    { field: 'txreceipt_status', filter: true },
-    { field: 'input', filter: true },
-    { field: 'contractAddress', filter: true },
-    { field: 'cumulativeGasUsed', filter: true },
-    { field: 'confirmations', filter: true },
-    { field: 'functionName', filter: true },
+    { field: 'hash', filter: true, resizable: true },
+    { field: 'methodId', filter: true, resizable: true, hide: true },
+    { field: 'blockNumber', filter: true, resizable: true, hide: true },
+    {
+      field: 'timeStamp',
+      filter: true,
+      resizable: true,
+      valueFormatter: (params) => timeStampFormatter(params.value),
+      resizable: true,
+    },
+    {
+      field: 'from',
+      filter: true,
+      resizable: true,
+      cellRenderer: addressFormatter,
+    },
+    {
+      field: 'to',
+      filter: true,
+      resizable: true,
+      cellRenderer: addressFormatter,
+    },
+    {
+      field: 'value',
+      filter: true,
+      resizable: true,
+      valueFormatter: (params) => params.value / 10 ** 18,
+    },
+    { field: 'gasUsed', filter: true, resizable: true },
+    { field: 'nonce', filter: true, resizable: true, hide: true },
+    { field: 'blockHash', filter: true, resizable: true, hide: true },
+    { field: 'transactionIndex', filter: true, resizable: true, hide: true },
+    { field: 'gas', filter: true, resizable: true, hide: true },
+    { field: 'gasPrice', filter: true, resizable: true, hide: true },
+    { field: 'isError', filter: true, resizable: true, hide: true },
+    { field: 'txreceipt_status', filter: true, resizable: true, hide: true },
+    { field: 'input', filter: true, resizable: true },
+    { field: 'contractAddress', filter: true, resizable: true, hide: true },
+    { field: 'cumulativeGasUsed', filter: true, resizable: true, hide: true },
+    { field: 'confirmations', filter: true, resizable: true, hide: true },
+    { field: 'functionName', filter: true, resizable: true },
   ]);
 
   const [columnDefsERC20, setColumnDefsERC20] = useState([
-    { field: 'hash', filter: true },
-    { field: 'timeStamp', filter: true },
-    { field: 'from', filter: true },
-    { field: 'to', filter: true },
-    { field: 'value', filter: true },
-    { field: 'tokenSymbol', filter: true },
-    { field: 'tokenName', filter: true },
-    { field: 'blockNumber', filter: true },
-    { field: 'nonce', filter: true },
-    { field: 'blockHash', filter: true },
-    { field: 'transactionIndex', filter: true },
-    { field: 'contractAddress', filter: true },
-    { field: 'tokenDecimal', filter: true },
-    { field: 'gas', filter: true },
-    { field: 'gasPrice', filter: true },
-    { field: 'isError', filter: true },
-    { field: 'txreceipt_status', filter: true },
-    { field: 'input', filter: true },
-    { field: 'contractAddress', filter: true },
-    { field: 'cumulativeGasUsed', filter: true },
-    { field: 'gasUsed', filter: true },
-    { field: 'confirmations', filter: true },
-    { field: 'methodId', filter: true },
+    {
+      field: 'hash',
+      filter: true,
+      resizable: true,
+      enableRowGroup: true,
+    },
+    {
+      field: 'timeStamp',
+      filter: true,
+      resizable: true,
+      valueFormatter: (params) => {
+        if (params.value) return timeStampFormatter(params.value);
+      },
+    },
+    {
+      field: 'from',
+      filter: true,
+      resizable: true,
+      cellRenderer: addressFormatter,
+    },
+    {
+      field: 'to',
+      filter: true,
+      resizable: true,
+      cellRenderer: addressFormatter,
+    },
+    {
+      field: 'value',
+      filter: true,
+      resizable: true,
+      valueFormatter: (params) => {
+        if (params.value) return params.value / 10 ** params.data.tokenDecimal;
+      },
+    },
+    {
+      field: 'tokenSymbol',
+      filter: true,
+      resizable: true,
+      cellRenderer: (params) => {
+        if (params.value) {
+          return (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <img
+                style={{
+                  width: '20px',
+                  borderRadius: '50%',
+                  marginRight: '2%',
+                }}
+                src={tokenImages[params.value]}
+              />
+              {params.value}
+            </div>
+          );
+        }
+      },
+    },
+    { field: 'tokenName', filter: true, resizable: true, hide: true },
+    { field: 'blockNumber', filter: true, resizable: true, hide: true },
+    { field: 'nonce', filter: true, resizable: true, hide: true },
+    { field: 'blockHash', filter: true, resizable: true, hide: true },
+    { field: 'transactionIndex', filter: true, resizable: true, hide: true },
+    { field: 'contractAddress', filter: true, resizable: true },
+    { field: 'tokenDecimal', filter: true, resizable: true },
+    { field: 'gas', filter: true, resizable: true },
+    { field: 'gasPrice', filter: true, resizable: true, hide: true },
+    { field: 'isError', filter: true, resizable: true, hide: true },
+    { field: 'txreceipt_status', filter: true, resizable: true, hide: true },
+    { field: 'input', filter: true, resizable: true, hide: true },
+    { field: 'cumulativeGasUsed', filter: true, resizable: true, hide: true },
+    { field: 'gasUsed', filter: true, resizable: true, hide: true },
+    { field: 'confirmations', filter: true, resizable: true, hide: true },
+    { field: 'methodId', filter: true, resizable: true },
   ]);
 
   // DefaultColDef sets props common to all Columns
@@ -136,11 +234,24 @@ const Transactions = () => {
     fetch(
       `https://api.polygonscan.com/api?module=account&action=${
         navbarSelected == 0 ? 'txlist' : 'tokentx'
-      }&address=0x1Fb8B18101194AdB78E0737b7E15087d2296dC1a&startblock=0&endblock=999999999999&page=1&offset=10000&sort=desc&apikey=DDZ33H8RZYENMTDX5KCM67FW1HBJD5CRUC`
+      }&address=${walletAddress}&startblock=0&endblock=999999999999&page=1&offset=10000&sort=desc&apikey=DDZ33H8RZYENMTDX5KCM67FW1HBJD5CRUC`
     )
       .then((result) => result.json())
       .then((rowData) => setRowData(rowData.result));
   }, [navbarSelected]);
+
+  useEffect(() => {
+    (async () => {
+      let response = await axios.get('https://tokens.uniswap.org/');
+      let result = {};
+      console.log('this is response from uniswap', response);
+      response.data.tokens.forEach((token) => {
+        result[token.symbol] = token.logoURI;
+      });
+      console.log('this os result after the loop - ', result);
+      setTokenImages(result);
+    })();
+  }, []);
 
   // Example using Grid's API
   const buttonListener = useCallback((e) => {
@@ -171,6 +282,7 @@ const Transactions = () => {
           rowSelection="multiple" // Options - allows click selection of rows
           onCellClicked={cellClickedListener} // Optional - registering for Grid Event
           sideBar={true}
+          // rowGroupPanelShow={navbarSelected == 0 ? 'never' : 'always'}
         />
       </TransactionsTable>
       {isSimulatorOpen && (

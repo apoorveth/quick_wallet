@@ -22,7 +22,7 @@ const OpacityContainer = styled.div`
 
 const SimulatorContainer = styled.div`
   background-color: #1c1c1c;
-  width: 70%;
+  width: 100%;
   right: 0;
   height: 100%;
   position: absolute;
@@ -36,7 +36,7 @@ const SimulatorContainer = styled.div`
   overflow: hidden;
 
   @media (min-width: 900px) {
-    width: 50%;
+    width: 100%;
     padding-top: calc(3.5vh + 4%);
   }
 `;
@@ -46,6 +46,7 @@ const DetailsScrollContainer = styled.div`
   padding-bottom: 20vh;
   padding-top: 2vh;
   height: -webkit-fill-available;
+  padding-left: 2%;
 `;
 
 const Heading = styled.div`
@@ -58,7 +59,8 @@ const Heading = styled.div`
   left: 0;
   position: absolute;
   top: 0;
-  padding: 3%;
+  padding: 1.8%;
+  padding-left: 4%;
 `;
 
 const TransactionDetailsContainer = styled.div`
@@ -133,19 +135,19 @@ const SimulateButton = styled.div`
   right: 5%;
   top: 0%;
   z-index: 2;
-  margin-top: 2%;
+  margin-top: 1.2%;
   background-color: white;
   color: black;
   border-radius: 50px;
   font-size: 2vh;
   font-family: GilmerMedium;
-  padding-top: 0.5%;
-  padding-bottom: 0.5%;
+  padding-top: 1%;
+  padding-bottom: 1%;
   padding-left: 2%;
   padding-right: 2%;
   position: absolute;
-  top: 1%;
-  right: 12%;
+  top: 0%;
+  right: 8%;
   cursor: pointer;
 
   :hover {
@@ -172,9 +174,10 @@ const filterSimulatorKeys = (obj) => {
   return JSON.stringify(data, null, 4);
 };
 
-const TransactionSimulator = ({ transaction, closeSimulator }) => {
+const InterceptedTransactionSimulator = ({ transaction }) => {
+  console.log('this is the simulator transaction - ', transaction);
   const [simulatorData, setSimulatorData] = useState(
-    filterSimulatorKeys(transaction)
+    filterSimulatorKeys({ ...transaction, input: transaction.data })
   );
   const [decodedInputData, setDecodedInputData] = useState('{}');
   const [contractFunctionName, setContractFunctionName] = useState(false);
@@ -183,18 +186,10 @@ const TransactionSimulator = ({ transaction, closeSimulator }) => {
 
   useEffect(() => {
     (async () => {
-      let txResponse = await axios.get(
-        `https://api.polygonscan.com/api?module=proxy&action=eth_getTransactionByHash&txhash=${transaction.hash}&apikey=DDZ33H8RZYENMTDX5KCM67FW1HBJD5CRUC`
-      );
-      if (typeof txResponse.data.result != 'object') {
-        return;
-      }
-      const tx = txResponse.data.result;
-      setSimulatorData(filterSimulatorKeys(tx));
-
       let abiResponse = await axios.get(
-        `https://api.polygonscan.com/api?module=contract&action=getabi&address=${tx.to}&apikey=DDZ33H8RZYENMTDX5KCM67FW1HBJD5CRUC`
+        `https://api.polygonscan.com/api?module=contract&action=getabi&address=${transaction.to}&apikey=DDZ33H8RZYENMTDX5KCM67FW1HBJD5CRUC`
       );
+      console.log('inside the use effect - ', transaction.to, abiResponse);
       if (abiResponse.data.status == '0') {
         return;
       }
@@ -203,8 +198,8 @@ const TransactionSimulator = ({ transaction, closeSimulator }) => {
       setContractAbi(abi);
       let contractInterface = new ethers.Interface(abi);
       let decodedArgumentsProxy = contractInterface.decodeFunctionData(
-        tx.input.substring(0, 10),
-        tx.input
+        transaction.data.substring(0, 10),
+        transaction.data
       );
       let decodedArguments = JSON.parse(
         JSON.stringify(
@@ -213,7 +208,7 @@ const TransactionSimulator = ({ transaction, closeSimulator }) => {
         )
       );
       let functionData = contractInterface.getFunction(
-        tx.input.substring(0, 10)
+        transaction.data.substring(0, 10)
       );
 
       console.log('this is function data - ', functionData, decodedArguments);
@@ -231,12 +226,18 @@ const TransactionSimulator = ({ transaction, closeSimulator }) => {
     let data = JSON.parse(simulatorData);
     try {
       let contractInterface = new ethers.Interface(contractAbi);
-      let inputEncoded = contractInterface.encodeFunctionData(
+      console.log(
+        'going to get encoded function data - ',
         contractFunctionName,
+        Object.values(JSON.parse(code))
+      );
+      let inputEncoded = contractInterface.encodeFunctionData(
+        transaction.data.substring(0, 10),
         Object.values(JSON.parse(code))
       );
       data.input = inputEncoded;
     } catch (err) {
+      console.error('error in getting input data - ', err);
       data.input = 'invalid_input';
     }
     setDecodedInputData(code);
@@ -267,6 +268,11 @@ const TransactionSimulator = ({ transaction, closeSimulator }) => {
     }
   };
 
+  const closeSimulator = async () => {
+    await chrome.storage.sync.set({ walletMessage: false });
+    window.close();
+  };
+
   return (
     <>
       <OpacityContainer></OpacityContainer>
@@ -274,6 +280,66 @@ const TransactionSimulator = ({ transaction, closeSimulator }) => {
         <CloseIcon onClick={closeSimulator} src={cross}></CloseIcon>
         <Heading>Transaction Simulator</Heading>
         <SimulateButton onClick={simulateTransaction}>SIMULATE</SimulateButton>
+        <DetailsScrollContainer>
+          <Subheading>Transaction Details</Subheading>
+          <Editor
+            value={simulatorData}
+            onValueChange={(code) => {
+              setSimulatorData(code);
+            }}
+            highlight={(code) => highlight(code, languages.js)}
+            padding={10}
+            style={{
+              fontFamily: '"Fira code", "Fira Mono", monospace',
+              fontSize: 12,
+              backgroundColor: 'black',
+              marginTop: '2%',
+              width: '90%',
+              caretColor: 'white',
+            }}
+          />
+          {contractFunctionName && (
+            <>
+              <Subheading style={{ marginTop: '3vh' }}>
+                Input Decoded
+              </Subheading>
+              <FunctionName>{contractFunctionName}()</FunctionName>
+              <Editor
+                value={decodedInputData}
+                onValueChange={decodedInputChange}
+                highlight={(code) => highlight(code, languages.js)}
+                padding={10}
+                style={{
+                  fontFamily: '"Fira code", "Fira Mono", monospace',
+                  fontSize: 12,
+                  backgroundColor: 'black',
+                  marginTop: '0%',
+                  width: '90%',
+                  caretColor: 'white',
+                }}
+              />
+            </>
+          )}
+          <Subheading style={{ marginTop: '3vh' }}>
+            Simulation Results
+          </Subheading>
+          <Editor
+            value={simulationResults}
+            onValueChange={() => {}}
+            highlight={(code) => highlight(code, languages.js)}
+            padding={10}
+            style={{
+              fontFamily: '"Fira code", "Fira Mono", monospace',
+              fontSize: 12,
+              backgroundColor: 'black',
+              marginTop: '0%',
+              width: '90%',
+              caretColor: 'black',
+              marginTop: '2%',
+            }}
+          />
+        </DetailsScrollContainer>
+        {/* 
         <DetailsScrollContainer>
           <Subheading>All Details</Subheading>
           <TransactionDetailsContainer>
@@ -351,10 +417,10 @@ const TransactionSimulator = ({ transaction, closeSimulator }) => {
               marginTop: '2%',
             }}
           />
-        </DetailsScrollContainer>
+        </DetailsScrollContainer> */}
       </SimulatorContainer>
     </>
   );
 };
 
-export default TransactionSimulator;
+export default InterceptedTransactionSimulator;

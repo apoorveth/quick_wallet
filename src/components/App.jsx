@@ -1,12 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { useDispatch, useSelector } from 'react-redux';
-import { initWallet, selectWallet } from '../features/wallet/walletSlice';
+import {
+  initWallet,
+  selectWallet,
+  selectCurrentTransaction,
+  setWallet,
+  setCurrentTransaction,
+} from '../features/wallet/walletSlice';
 import Navbar from './Navbar/Navbar';
 import config from '../config/config.json';
 import Transactions from './Transactions/Transactions';
 import { NavbarPages, selectPage } from '../features/wallet/navbarSlice';
 import BottomBar from './BottomBar/BottomBar';
+import InterceptedTransactionSimulator from './Transactions/InterceptedTransactionSimulator';
+import Settings from './Settings/Settings';
 
 const AppContainer = styled.div`
   top: 0px;
@@ -25,6 +33,8 @@ const AppContainer = styled.div`
 const App = () => {
   const dispatch = useDispatch();
   const navbarPage = useSelector(selectPage);
+  const currentTransaction = useSelector(selectCurrentTransaction);
+  const [bottomBarSelected, setBottomBarSelected] = useState(1);
 
   useEffect(() => {
     dispatch(initWallet());
@@ -40,11 +50,39 @@ const App = () => {
     }
   }, [navbarPage]);
 
+  useEffect(() => {
+    (async () => {
+      console.log(
+        'check the chrome storage over here - ',
+        await chrome.storage.sync.get(['walletMessage'])
+      );
+      let walletMessage = await chrome.storage.sync.get(['walletMessage']);
+      if (walletMessage.walletMessage) {
+        dispatch(setCurrentTransaction(walletMessage.walletMessage.params[0]));
+      } else {
+        dispatch(setCurrentTransaction(false));
+      }
+    })();
+  }, []);
+
   return (
     <AppContainer>
       <Navbar></Navbar>
-      <Transactions></Transactions>
-      <BottomBar></BottomBar>
+      {!currentTransaction &&
+        (bottomBarSelected == 0 ? (
+          <Transactions></Transactions>
+        ) : (
+          <Settings></Settings>
+        ))}
+      {currentTransaction && (
+        <InterceptedTransactionSimulator
+          transaction={currentTransaction}
+        ></InterceptedTransactionSimulator>
+      )}
+      <BottomBar
+        setBottomBarSelected={setBottomBarSelected}
+        bottomBarSelected={bottomBarSelected}
+      ></BottomBar>
     </AppContainer>
   );
 };
