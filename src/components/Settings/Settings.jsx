@@ -1,125 +1,142 @@
 import React, {
-  useState,
-  useRef,
-  useEffect,
-  useMemo,
-  useCallback,
+    useState,
+    useRef,
+    useEffect,
+    useMemo,
+    useCallback,
 } from 'react';
 import styled, { css } from 'styled-components';
 import Toggle from 'react-toggle';
 import './Settings.css';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectAllSettings, updateSetting } from '../../features/settingsSlice';
+import SETTINGS_CONFIG from '../../config/settings';
 
 const SettingsContainer = styled.div`
-  padding-left: 1rem;
-  height: -webkit-fill-available;
-  padding-top: 1rem;
-  padding-right: 1rem;
-  padding-bottom: 1rem;
-  overflow: hidden;
-  padding-left: 2%;
-  padding-top: 2%;
+    padding-left: 1rem;
+    height: -webkit-fill-available;
+    padding-top: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 1rem;
+    overflow: hidden;
+    padding-left: 2%;
+    padding-top: 2%;
 `;
 
 const Heading = styled.div`
-  font-size: 4vh;
-  color: white;
-  text-align: left;
-  margin-bottom: 2%;
-  @media (min-width: 900px) {
-    font-size: 3vh;
-  }
+    font-size: 4vh;
+    color: white;
+    text-align: left;
+    margin-bottom: 2%;
+    @media (min-width: 900px) {
+        font-size: 3vh;
+    }
 `;
 
 const SettingRow = styled.div`
-  justify-content: space-between;
-  display: flex;
-  margin-bottom: 1%;
+    justify-content: space-between;
+    display: flex;
+    margin-bottom: 1%;
+`;
+
+const SettingLabel = styled.div`
+    display: flex;
+    flex-direction: column;
+    text-align: left;
 `;
 
 const SettingName = styled.div`
-  color: #bdbdbd;
-  font-size: 3vh;
-  @media (min-width: 900px) {
-    font-size: 2vh;
-  }
+    color: #eeeeee;
+    font-size: 3vh;
+    @media (min-width: 900px) {
+        font-size: 2.5vh;
+    }
 `;
 
-const Settings = () => {
-  const [settings, setSettings] = useState({
-    debugger: false,
-    autoSubmit: false,
-    hotkeys: false,
-  });
-  useEffect(() => {
-    (async () => {
-      let settingsStorage = await chrome.storage.sync.get(['settings']);
-      console.log('got settings from storage - ', settingsStorage);
-      if (!settingsStorage.settings) {
-        settingsStorage = {
-          debugger: true,
-          autoSubmit: true,
-          hotkeys: true,
-        };
-        await chrome.storage.sync.set({
-          settings: settingsStorage,
-        });
-        return;
-      }
-      setSettings(settingsStorage.settings);
-    })();
-  }, []);
+const SettingDetails = styled.div`
+    color: rgb(189, 189, 189);
+    margin-top: 5px;
 
-  const updateSettings = async (e, keyName) => {
-    console.log('inside upate settings', e.target.checked, keyName);
-    let newSettings = { ...settings };
-    newSettings[keyName] = e.target.checked;
-    setSettings(newSettings);
-    await chrome.storage.sync.set({
-      settings: newSettings,
-    });
-  };
-  return (
-    <SettingsContainer>
-      <Heading>Settings</Heading>
-      <SettingRow>
-        <SettingName>Debugger</SettingName>
+    @media (min-width: 900px) {
+        font-size: 1.7vh;
+    }
+
+    .settingsLink {
+        color: white;
+    }
+`;
+
+const SettingInput = styled.input`
+    border-radius: 5px;
+    padding-left: 10px;
+    background-color: #272727;
+    border: 1px solid #b3b3b3;
+    font-size: 2vh;
+    color: white;
+    width: 30%;
+    @media (min-width: 900px) {
+        width: 20%;
+    }
+`;
+
+const ToggleSetting = ({ checked, onChange }) => {
+    return (
         <label>
-          <Toggle
-            checked={settings.debugger}
-            icons={false}
-            onChange={(e) => {
-              console.log('inside over here!!!');
-              updateSettings(e, 'debugger');
-            }}
-          />
+            <Toggle checked={checked} icons={false} onChange={onChange} />
         </label>
-      </SettingRow>
-      <SettingRow>
-        <SettingName>Auto Submit Transactions</SettingName>
-        <label>
-          <Toggle
-            checked={settings.autoSubmit}
-            icons={false}
-            onChange={(e) => {
-              updateSettings(e, 'autoSubmit');
-            }}
-          />
-        </label>
-      </SettingRow>
-      <SettingRow>
-        <SettingName>Hotkeys</SettingName>
-        <label>
-          <Toggle
-            checked={settings.hotkeys}
-            icons={false}
-            onChange={(e) => {
-              updateSettings(e, 'hotkeys');
-            }}
-          />
-        </label>
-      </SettingRow>
-    </SettingsContainer>
-  );
+    );
+};
+
+const Settings = () => {
+    const dispatch = useDispatch();
+    const settings = useSelector(selectAllSettings);
+
+    const updateSettings = async (key, value) => {
+        console.log('Updating setting - ', key, value);
+        dispatch(updateSetting(key, value));
+    };
+    return (
+        <SettingsContainer>
+            <Heading>Settings</Heading>
+            {Object.entries(SETTINGS_CONFIG).map(([key, value]) => {
+                let settingJSX = <div></div>;
+                if (value.type == 'toggle') {
+                    settingJSX = (
+                        <ToggleSetting
+                            onChange={(e) => {
+                                updateSettings(key, e.target.checked);
+                            }}
+                            checked={settings[key]}
+                        ></ToggleSetting>
+                    );
+                } else if (value.type == 'input') {
+                    settingJSX = (
+                        <SettingInput
+                            onChange={(e) => {
+                                updateSettings(key, e.target.value);
+                            }}
+                            value={settings[key]}
+                        ></SettingInput>
+                    );
+                }
+                return (
+                    <SettingRow>
+                        <SettingLabel>
+                            <SettingName>{value.labelTitle}</SettingName>
+                            {value.labelDescription && (
+                                <SettingDetails
+                                    dangerouslySetInnerHTML={{
+                                        __html: value.labelDescription,
+                                    }}
+                                ></SettingDetails>
+                            )}
+                        </SettingLabel>
+                        {settingJSX}
+                    </SettingRow>
+                );
+            })}
+        </SettingsContainer>
+    );
 };
 
 export default Settings;
