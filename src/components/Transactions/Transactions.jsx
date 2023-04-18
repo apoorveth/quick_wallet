@@ -18,6 +18,7 @@ import { selectNetwork } from '../../features/walletSlice';
 import { getERC20Transactions, getTransactions } from '../../services/scan';
 import './Transactions.css';
 import CellImageAndText from '../AgGrid/CellImageAndText';
+import mixpanel from 'mixpanel-browser';
 
 const TransactionContainer = styled.div`
     padding-left: 1rem;
@@ -246,6 +247,10 @@ const Transactions = () => {
     const cellClickedListener = useCallback((event) => {
         console.log('cellClicked', event);
         setIsSimulatorOpen(true);
+
+        mixpanel.track('TRANSACTIONS_ROW_CLICK', {
+            transaction: event.data,
+        });
         setSimulatorTransaction(event.data);
     }, []);
 

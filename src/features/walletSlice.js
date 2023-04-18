@@ -1,10 +1,11 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { ethers } from 'ethers';
+import mixpanel from 'mixpanel-browser';
 
 const initialState = {
     walletPrivateKey: undefined,
     currentSimulation: false, //false or the current transaction object
-    network: 'polygon',
+    network: 'ethereum',
 };
 
 export const walletSlice = createSlice({
@@ -16,7 +17,12 @@ export const walletSlice = createSlice({
             state.walletPrivateKey = data.payload;
         },
         setCurrentSimulation: (state, data) => {
-            console.log('setting current transactiojn', data);
+            if (data.payload != false) {
+                mixpanel.track('NEW_SIMULATION', {
+                    simulation: data.payload,
+                    appUrl: data.payload.appUrl,
+                });
+            }
             state.currentSimulation = data.payload;
         },
         setNetwork: (state, data) => {

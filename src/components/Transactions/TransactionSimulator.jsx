@@ -20,12 +20,13 @@ import NETWORK_CONFIG from '../../config/networks';
 import { v4 as uuidv4 } from 'uuid';
 import { AgGridReact } from 'ag-grid-react';
 import CellImageAndText from '../AgGrid/CellImageAndText';
-import { selectSettingWithKey } from '../../features/settingsSlice';
+import { selectSettingWithKey } from '../../features/userSlice';
 import { updateWalletMessageAndState } from '../../lib/storage';
 import { SimulationState } from '../../lib/request';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlay } from '@fortawesome/free-solid-svg-icons';
+import { faCopy, faPlay } from '@fortawesome/free-solid-svg-icons';
 import MetamaskImage from '../../assets/img/metamask.png';
+import mixpanel from 'mixpanel-browser';
 
 const OpacityContainer = styled.div`
     position: fixed;
@@ -185,6 +186,7 @@ const TransactionDetail = styled.div`
     margin-bottom: 0.8vh;
     font-size: 2.1vh;
     width: 40%;
+    cursor: pointer;
     @media (min-width: 900px) {
         font-size: 1.8vh;
     }
@@ -208,6 +210,23 @@ const TransactionDetailValue = styled.div`
     border-bottom-right-radius: 5px;
     /* padding: 0.5vw; */
     margin-left: 0.5vw;
+`;
+
+const CopyIcon = styled(FontAwesomeIcon)`
+    margin-left: 5px;
+    display: none;
+
+    ${TransactionDetail}:hover & {
+        display: block;
+    }
+
+    ${TransactionDetail}:active & {
+        transform: scale(1.2);
+    }
+
+    ${TransactionDetail}:active::after & {
+        transform: scale(1);
+    }
 `;
 
 const FunctionName = styled.div`
@@ -358,7 +377,7 @@ const TransactionSimulator = ({
         useState(false);
     const [transaction, setTransaction] = useState({});
     const network = useSelector(selectNetwork);
-    const [assetChanges, setAssetChanges] = useState([]);
+    const [assetChanges, setAssetChanges] = useState();
     const [simulationStatus, setSimulationStatus] = useState(false);
     const gridRef = useRef();
     const dispatch = useDispatch();
@@ -373,6 +392,7 @@ const TransactionSimulator = ({
                     ></CellImageAndText>
                 );
             },
+            resizable: true,
         },
         {
             field: 'Type',
@@ -383,6 +403,7 @@ const TransactionSimulator = ({
                 }
                 return 'Unknown';
             },
+            resizable: true,
         },
         {
             field: 'Value',
@@ -390,9 +411,16 @@ const TransactionSimulator = ({
                 if (params.data.tokenType == 'ERC721') return 1;
                 return Number(params.data.amount) / 10 ** params.data.decimals;
             },
+            resizable: true,
         },
     ]);
     const tenderlyApiKey = useSelector(selectSettingWithKey('tenderlyApiKey'));
+    const tenderlyUsername = useSelector(
+        selectSettingWithKey('tenderlyUsername')
+    );
+    const tenderlyProjectName = useSelector(
+        selectSettingWithKey('tenderlyProjectName')
+    );
     const defaultColDef = useMemo(() => ({
         sortable: true,
     }));
@@ -407,13 +435,26 @@ const TransactionSimulator = ({
                 let mappedTransaction =
                     interceptedTransaction.walletMessage.params[0];
                 setTransaction(mappedTransaction);
+                mixpanel.track('NEW_INTERCEPTED_SIMULATION', {
+                    transaction: mappedTransaction,
+                });
                 return;
             }
             let txResponse = await getTransaction(network, hash);
             if (typeof txResponse.result != 'object') {
+                mixpanel.track('FAILED_TRANSACTION_GET', {
+                    transaction: txResponse,
+                });
                 return;
             }
-            setTransaction(txResponse.result);
+
+            mixpanel.track('NEW_TRANSACTION_SIMULATION', {
+                transaction: txResponse.result,
+            });
+            setTransaction({
+                ...txResponse.result,
+                data: txResponse.result.input,
+            });
         })();
     }, []);
 
@@ -481,6 +522,10 @@ const TransactionSimulator = ({
 
     const simulate = async (type) => {
         let simulatorDataJson = JSON.parse(simulatorData);
+        mixpanel.track('SIMULATE_TRANSACTION', {
+            type: type,
+            simulatorData: simulatorDataJson,
+        });
         const response = await axios.post(
             `${process.env.REACT_APP_BACKEND_BASE_URL}/v1/simulator/simulate`,
             {
@@ -490,7 +535,9 @@ const TransactionSimulator = ({
                 gas: simulatorDataJson.gas,
                 data: simulatorDataJson.data,
                 simulatorType: type,
-                ...(type == 'DETAILED' ? { tenderlyApiKey } : {}),
+                ...(type == 'DETAILED'
+                    ? { tenderlyApiKey, tenderlyUsername, tenderlyProjectName }
+                    : {}),
                 ...(simulatorDataJson.value
                     ? {
                           value: `0x${Number(simulatorDataJson.value).toString(
@@ -527,6 +574,7 @@ const TransactionSimulator = ({
     };
 
     const getAssetChanges = async () => {
+        showLoadingOverlayAssetChanges();
         try {
             let response = await simulate('ASSET_CHANGES');
             setSimulationStatus({
@@ -541,16 +589,31 @@ const TransactionSimulator = ({
         } catch (err) {
             setAssetChanges([]);
         }
+        hideLoadingOverlayAssetChanges();
     };
 
     const simulateTransaction = async () => {
+        mixpanel.track('SIMULATE_TRANSACTION_CLICK');
         setSimulationLoading(true);
         let promises = [getDetailedSimulation(), getAssetChanges()];
         await Promise.all(promises);
         setSimulationLoading(false);
     };
 
+    const showLoadingOverlayAssetChanges = () => {
+        if (gridRef && gridRef.current && gridRef.current.api) {
+            gridRef.current.api.showLoadingOverlay();
+        }
+    };
+
+    const hideLoadingOverlayAssetChanges = () => {
+        if (gridRef && gridRef.current && gridRef.current.api) {
+            gridRef.current.api.hideOverlay();
+        }
+    };
+
     const handleSimulatorClose = async () => {
+        mixpanel.track('SIMULATOR_CLOSED');
         if (!interceptedTransaction) {
             closeSimulator();
             return;
@@ -561,6 +624,9 @@ const TransactionSimulator = ({
     const continueToWallet = async () => {
         console.log('inside continueToWallet');
         let simulationDataJson = JSON.parse(simulatorData);
+        mixpanel.track('FORWARD_SIMULATION_TO_WALLET', {
+            simulatorData: simulationDataJson,
+        });
         let newParams = {};
 
         Object.entries(simulationDataJson).map(([key, value]) => {
@@ -599,10 +665,13 @@ const TransactionSimulator = ({
                         >
                             {simulationLoading ? <Loader /> : 'SIMULATE'}
                         </SimulateButton>
-                        <ForwardToWalletButton onClick={continueToWallet}>
-                            <ForwardButtonImage src={MetamaskImage} />
-                            <FontAwesomeIcon icon={faPlay} />
-                        </ForwardToWalletButton>
+                        {interceptedTransaction && (
+                            <ForwardToWalletButton onClick={continueToWallet}>
+                                <ForwardButtonImage src={MetamaskImage} />
+                                <FontAwesomeIcon icon={faPlay} />
+                            </ForwardToWalletButton>
+                        )}
+
                         <CloseIcon
                             onClick={handleSimulatorClose}
                             src={cross}
@@ -615,7 +684,11 @@ const TransactionSimulator = ({
                         {Object.entries(transaction)
                             .filter(([_, value]) => value)
                             .map(([key, value]) => (
-                                <TransactionDetail>
+                                <TransactionDetail
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(value);
+                                    }}
+                                >
                                     <TransactionDetailKey>
                                         {key}:{' '}
                                     </TransactionDetailKey>
@@ -629,6 +702,11 @@ const TransactionSimulator = ({
                                               )
                                             : value}
                                     </TransactionDetailValue>
+                                    <CopyIcon
+                                        icon={faCopy}
+                                        color="#898989"
+                                        size="sm"
+                                    />
                                 </TransactionDetail>
                             ))}
                     </TransactionDetailsContainer>

@@ -17,8 +17,12 @@ export const getInputDataWithoutAbi = async ({ to, data, network }) => {
     if (!abiString) {
         return { abi: false };
     }
-    let abi = JSON.parse(abiString);
-    return { ...getInputData({ data, abi }), abi };
+    try {
+        let abi = JSON.parse(abiString);
+        return { ...getInputData({ data, abi }), abi };
+    } catch (err) {
+        return { abi: false };
+    }
 };
 
 export const getInputData = ({ data, abi }) => {

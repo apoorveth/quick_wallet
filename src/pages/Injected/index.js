@@ -65,6 +65,7 @@ const addQuickWalletProxy = (provider) => {
                 chainId: await provider.request({ method: 'eth_chainId' }),
                 walletMessage: { ...request },
                 state: SimulationState.Intercepted,
+                appUrl: window.location.href,
                 id: uuidv4(),
             });
 
@@ -84,24 +85,27 @@ const addQuickWalletProxy = (provider) => {
     const sendAsyncHandler = {
         apply: async (target, thisArg, args) => {
             const [request, callback] = args;
+            return Reflect.apply(target, thisArg, args);
 
-            if (!request || request.method != 'eth_sendTransaction') {
-                return Reflect.apply(target, thisArg, args);
-            }
+            //TODO (apoorv): Handle this
 
-            if (request.params.length !== 1) {
-                // Forward the request anyway.
+            // if (!request || request.method != 'eth_sendTransaction') {
+            //     return Reflect.apply(target, thisArg, args);
+            // }
 
-                return Reflect.apply(target, thisArg, args);
-            }
+            // if (request.params.length !== 1) {
+            //     // Forward the request anyway.
 
-            provider.request({ method: 'eth_chainId' }).then((chainId) => {
-                return REQUEST_MANAGER.request({
-                    chainId,
-                    walletMessage: { ...request },
-                    state: SimulationState.Intercepted,
-                });
-            });
+            //     return Reflect.apply(target, thisArg, args);
+            // }
+
+            // provider.request({ method: 'eth_chainId' }).then((chainId) => {
+            //     return REQUEST_MANAGER.request({
+            //         chainId,
+            //         walletMessage: { ...request },
+            //         state: SimulationState.Intercepted,
+            //     });
+            // });
         },
     };
 

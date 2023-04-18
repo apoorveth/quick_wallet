@@ -9,7 +9,7 @@ import styled, { css } from 'styled-components';
 import Toggle from 'react-toggle';
 import './Settings.css';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectAllSettings, updateSetting } from '../../features/settingsSlice';
+import { selectAllSettings, updateSetting } from '../../features/userSlice';
 import SETTINGS_CONFIG from '../../config/settings';
 
 const SettingsContainer = styled.div`
@@ -37,6 +37,11 @@ const SettingRow = styled.div`
     justify-content: space-between;
     display: flex;
     margin-bottom: 1%;
+    align-items: center;
+
+    @media (max-width: 900px) {
+        margin-bottom: 2%;
+    }
 `;
 
 const SettingLabel = styled.div`
@@ -48,8 +53,30 @@ const SettingLabel = styled.div`
 const SettingName = styled.div`
     color: #eeeeee;
     font-size: 3vh;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     @media (min-width: 900px) {
         font-size: 2.5vh;
+    }
+`;
+
+const BetaLabel = styled.div`
+    background-color: white;
+    color: black;
+    font-size: 1.8vh;
+    width: 80px;
+    text-align: center;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 2%;
+    height: fit-content;
+
+    @media (max-width: 900px) {
+        font-size: 2.2vh;
+        width: 60px;
     }
 `;
 
@@ -74,6 +101,10 @@ const SettingInput = styled.input`
     font-size: 2vh;
     color: white;
     width: 30%;
+    height: fit-content;
+    padding-top: 8px;
+    padding-bottom: 8px;
+
     @media (min-width: 900px) {
         width: 20%;
     }
@@ -116,13 +147,17 @@ const Settings = () => {
                                 updateSettings(key, e.target.value);
                             }}
                             value={settings[key]}
+                            type={value.inputType ? value.inputType : 'text'}
                         ></SettingInput>
                     );
                 }
                 return (
-                    <SettingRow>
+                    <SettingRow key={key}>
                         <SettingLabel>
-                            <SettingName>{value.labelTitle}</SettingName>
+                            <SettingName>
+                                {value.labelTitle}
+                                {value.beta && <BetaLabel>BETA</BetaLabel>}
+                            </SettingName>
                             {value.labelDescription && (
                                 <SettingDetails
                                     dangerouslySetInnerHTML={{

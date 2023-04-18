@@ -1,5 +1,6 @@
 export const STORAGE_SIMUALTIONS_KEY = 'simulations';
 export const STORAGE_SETTINGS_KEY = 'settings';
+export const STORAGE_USER_ID_KEY = 'user_id';
 
 export const setStorage = async (key, value) => {
     let newStorage = {};

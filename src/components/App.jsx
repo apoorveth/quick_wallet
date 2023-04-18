@@ -9,21 +9,21 @@ import {
     setNetwork,
     selectCurrentSimulation,
 } from '../features/walletSlice';
-import Navbar from './Navbar/Navbar';
+import TopBar from './TopBar/TopBar';
 import config from '../config/config.json';
 import Transactions from './Transactions/Transactions';
-import { NavbarPages, selectPage } from '../features/navbarSlice';
-import BottomBar from './BottomBar/BottomBar';
+import Navbar from './Navbar/Navbar';
 import Settings from './Settings/Settings';
 import TransactionSimulator from './Transactions/TransactionSimulator';
 import 'ag-grid-enterprise';
 import 'ag-grid-community/styles/ag-grid.css'; // Core grid CSS, always needed
 import 'ag-grid-community/styles/ag-theme-alpine.css'; // Optional theme CSS
-import { initSettings } from '../features/settingsSlice';
+import { initUser } from '../features/userSlice';
 import NETWORK_CONFIG from '../config/networks';
 import { STORAGE_SIMUALTIONS_KEY, updateSimulationState } from '../lib/storage';
 import { SimulationState } from '../lib/request';
 import { POPUP_CONNECT_PREFIX } from '../lib/constants';
+import { NAVBAR_PAGES, selectPage } from '../features/navbarSlice';
 
 const AppContainer = styled.div`
     top: 0px;
@@ -34,31 +34,24 @@ const AppContainer = styled.div`
     background-color: #282c34;
     width: 100%;
     background-image: linear-gradient(to top, #222222, #2d2d2d);
-    padding-top: ${config.navbarHeight + 'px'};
+    padding-top: ${config.topBarHeight + 'px'};
     padding-bottom: ${config.bottomBarHeight + 'px'};
     position: absolute;
 `;
 
 const App = () => {
     const dispatch = useDispatch();
-    const navbarPage = useSelector(selectPage);
     const currentSimulation = useSelector(selectCurrentSimulation);
-    const [bottomBarSelected, setBottomBarSelected] = useState(0);
+    const navbarPage = useSelector(selectPage);
 
     useEffect(() => {
         dispatch(initWallet());
-        dispatch(initSettings());
-    });
+        dispatch(initUser());
 
-    useEffect(() => {
         const appContainer = document.getElementById('app-container');
-        switch (navbarPage) {
-            case NavbarPages.TRANSACTIONS:
-                appContainer.style.height = '600px';
-                appContainer.style.width = '800px';
-                break;
-        }
-    }, [navbarPage]);
+        appContainer.style.height = '600px';
+        appContainer.style.width = '800px';
+    });
 
     useEffect(() => {
         (async () => {
@@ -102,25 +95,27 @@ const App = () => {
         })();
     }, []);
 
+    let currentPage;
+    switch (navbarPage) {
+        case NAVBAR_PAGES.transactions.value:
+            currentPage = <Transactions></Transactions>;
+            break;
+        case NAVBAR_PAGES.settings.value:
+        default:
+            currentPage = <Settings></Settings>;
+            break;
+    }
     return (
         <AppContainer>
-            <Navbar></Navbar>
-            {!currentSimulation &&
-                (bottomBarSelected == 0 ? (
-                    <Transactions></Transactions>
-                ) : (
-                    <Settings></Settings>
-                ))}
+            <TopBar />
+            {!currentSimulation && currentPage}
             {currentSimulation && (
                 <TransactionSimulator
                     interceptedTransaction={currentSimulation}
                     fullScreen={true}
                 ></TransactionSimulator>
             )}
-            <BottomBar
-                setBottomBarSelected={setBottomBarSelected}
-                bottomBarSelected={bottomBarSelected}
-            ></BottomBar>
+            <Navbar />
         </AppContainer>
     );
 };

@@ -1,29 +1,40 @@
+import { faCog, faExchange } from '@fortawesome/free-solid-svg-icons';
 import { createSlice } from '@reduxjs/toolkit';
-import { ethers } from 'ethers';
+import mixpanel from 'mixpanel-browser';
 
-export const NavbarPages = {
-  TRANSACTIONS: 0,
+export const NAVBAR_PAGES = {
+    transactions: {
+        icon: faExchange,
+        value: 'transactions',
+    },
+    settings: {
+        icon: faCog,
+        value: 'settings',
+    },
 };
 
 const initialState = {
-  page: NavbarPages.TRANSACTIONS,
+    page: NAVBAR_PAGES.settings.value,
 };
 
 export const navbarSlice = createSlice({
-  name: 'navbar',
-  initialState,
-  // The `reducers` field lets us define reducers and generate associated actions
-  reducers: {
-    setPage: (state, data) => {
-      state.page = data.payload;
+    name: 'navbar',
+    initialState,
+    // The `reducers` field lets us define reducers and generate associated actions
+    reducers: {
+        setPage: (state, data) => {
+            mixpanel.track('NAVIGATE', {
+                page: data.payload,
+            });
+            state.page = data.payload;
+        },
     },
-  },
 });
 
 export const { setPage } = navbarSlice.actions;
 
 export const selectPage = (state) => {
-  return state.navbar.page;
+    return state.navbar.page;
 };
 
 export default navbarSlice.reducer;

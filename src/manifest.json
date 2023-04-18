@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "QuickWallet",
-  "description": "A chrome extension boilerplate built with React 17, Webpack 5, and Webpack Dev Server 4",
+  "name": "3Speed",
+  "description": "A chrome extension to supercharge your web3 experience",
   "options_page": "options.html",
   "background": { "service_worker": "background.bundle.js" },
   "action": {

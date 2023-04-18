@@ -1,7 +1,7 @@
 {
-  "name": "chrome-extension-boilerplate-react",
-  "version": "0.0.1",
-  "description": "A chrome extension boilerplate built with React 18, Webpack 5, and Webpack Dev Server 4",
+  "name": "three-speed-supercharge-web3",
+  "version": "0.0.3",
+  "description": "A chrome extension to supercharge your web3 experience",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -29,6 +29,7 @@
     "ethers": "^6.1.0",
     "kbar": "^0.1.0-beta.40",
     "lodash": "^4.17.21",
+    "mixpanel-browser": "^2.46.0",
     "pino": "^8.11.0",
     "prismjs": "^1.29.0",
     "react": "^18.2.0",

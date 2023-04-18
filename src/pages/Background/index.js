@@ -67,7 +67,7 @@ chrome.runtime.onMessage.addListener(async (request) => {
                     console.log('updated simulation');
                     await chrome.windows.remove(window.id);
                     console.log('closing window');
-                }, 300);
+                }, 500);
             }
         );
     }
