@@ -39,7 +39,7 @@ listenToRequest(async (request) => {
     ids.push(request.id);
     console.log('Quick wallet received a request');
     const settings =
-        (await chrome.storage.sync.get([STORAGE_SETTINGS_KEY])).settings ||
+        (await chrome.storage.local.get([STORAGE_SETTINGS_KEY])).settings ||
         getDetfaultSettings();
 
     if (settings.debugger) {
@@ -68,7 +68,7 @@ listenToRequest(async (request) => {
 
 chrome.storage.onChanged.addListener((changes, area) => {
     console.log('Inside the storage change listener - ', changes, area);
-    if (area !== 'sync' || !changes[STORAGE_SIMUALTIONS_KEY]?.newValue) {
+    if (area !== 'local' || !changes[STORAGE_SIMUALTIONS_KEY]?.newValue) {
         return;
     }
     const newSimulations = changes[STORAGE_SIMUALTIONS_KEY].newValue;

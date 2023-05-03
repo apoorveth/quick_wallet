@@ -5,6 +5,7 @@ import mixpanel from 'mixpanel-browser';
 const initialState = {
     walletPrivateKey: undefined,
     currentSimulation: false, //false or the current transaction object
+    currentSimulationTransactionIndex: 0,
     network: 'ethereum',
 };
 
@@ -25,14 +26,26 @@ export const walletSlice = createSlice({
             }
             state.currentSimulation = data.payload;
         },
+        setCurrentSimulationWalletMessage: (state, data) => {
+            state.currentSimulation.walletMessage[0][data.payload.index] =
+                data.payload.newMessage;
+        },
         setNetwork: (state, data) => {
             state.network = data.payload;
+        },
+        setCurrentSimulationTransactionIndex: (state, data) => {
+            state.currentSimulationTransactionIndex = data.payload;
         },
     },
 });
 
-export const { setWallet, setCurrentSimulation, setNetwork } =
-    walletSlice.actions;
+export const {
+    setWallet,
+    setCurrentSimulation,
+    setNetwork,
+    setCurrentSimulationTransactionIndex,
+    setCurrentSimulationWalletMessage,
+} = walletSlice.actions;
 
 export const selectWallet = (state) => {
     if (!state.wallet.walletPrivateKey) {
@@ -43,6 +56,9 @@ export const selectWallet = (state) => {
 
 export const selectCurrentSimulation = (state) =>
     state.wallet.currentSimulation;
+
+export const selectCurrentSimulationTransactionIndex = (state) =>
+    state.wallet.currentSimulationTransactionIndex;
 
 export const selectNetwork = (state) => state.wallet.network;
 // We can also write thunks by hand, which may contain both sync and async logic.

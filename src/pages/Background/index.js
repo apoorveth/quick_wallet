@@ -80,6 +80,9 @@ chrome.runtime.onConnect.addListener(function (port) {
                 `${POPUP_CONNECT_PREFIX}_`,
                 ''
             );
+            if (JSON.parse(process.env.REACT_APP_PERSIST_SIMULATION)) {
+                return;
+            }
             await updateSimulationState(simulationId, SimulationState.Rejected);
         });
     }

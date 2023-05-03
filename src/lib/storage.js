@@ -5,11 +5,11 @@ export const STORAGE_USER_ID_KEY = 'user_id';
 export const setStorage = async (key, value) => {
     let newStorage = {};
     newStorage[key] = value;
-    await chrome.storage.sync.set(newStorage);
+    await chrome.storage.local.set(newStorage);
 };
 
 export const updateSimulationState = async (id, state) => {
-    let storage = await chrome.storage.sync.get(STORAGE_SIMUALTIONS_KEY);
+    let storage = await chrome.storage.local.get(STORAGE_SIMUALTIONS_KEY);
 
     let newSimulations = storage[STORAGE_SIMUALTIONS_KEY];
     newSimulations = newSimulations.map((x) =>
@@ -24,7 +24,7 @@ export const updateSimulationState = async (id, state) => {
 };
 
 export const addSimulation = async (simulation) => {
-    const storage = await chrome.storage.sync.get([STORAGE_SIMUALTIONS_KEY]);
+    const storage = await chrome.storage.local.get([STORAGE_SIMUALTIONS_KEY]);
     let simulations = storage[STORAGE_SIMUALTIONS_KEY] || [];
     simulations.push(simulation);
     await setStorage(STORAGE_SIMUALTIONS_KEY, simulations);
@@ -32,7 +32,7 @@ export const addSimulation = async (simulation) => {
 
 export const updateWalletMessageAndState = async (id, walletMessage, state) => {
     console.log('Updating simulation with id - ', id);
-    let storage = await chrome.storage.sync.get(STORAGE_SIMUALTIONS_KEY);
+    let storage = await chrome.storage.local.get(STORAGE_SIMUALTIONS_KEY);
 
     let newSimulations = storage[STORAGE_SIMUALTIONS_KEY];
     newSimulations = newSimulations.map((x) =>
@@ -49,7 +49,7 @@ export const updateWalletMessageAndState = async (id, walletMessage, state) => {
 };
 
 export const removeSimulation = async (id) => {
-    let storage = await chrome.storage.sync.get(STORAGE_SIMUALTIONS_KEY);
+    let storage = await chrome.storage.local.get(STORAGE_SIMUALTIONS_KEY);
 
     let simulations = storage[STORAGE_SIMUALTIONS_KEY].filter(
         (storedSimulation) => {

@@ -8,6 +8,8 @@ import {
     setCurrentSimulation,
     setNetwork,
     selectCurrentSimulation,
+    selectNetwork,
+    setCurrentSimulationTransactionIndex,
 } from '../features/walletSlice';
 import TopBar from './TopBar/TopBar';
 import config from '../config/config.json';
@@ -24,6 +26,7 @@ import { STORAGE_SIMUALTIONS_KEY, updateSimulationState } from '../lib/storage';
 import { SimulationState } from '../lib/request';
 import { POPUP_CONNECT_PREFIX } from '../lib/constants';
 import { NAVBAR_PAGES, selectPage } from '../features/navbarSlice';
+import TransactionSimulatorStarknet from './Transactions/TransactionSimulatorStarknet';
 
 const AppContainer = styled.div`
     top: 0px;
@@ -43,6 +46,7 @@ const App = () => {
     const dispatch = useDispatch();
     const currentSimulation = useSelector(selectCurrentSimulation);
     const navbarPage = useSelector(selectPage);
+    const network = useSelector(selectNetwork);
 
     useEffect(() => {
         dispatch(initWallet());
@@ -55,7 +59,7 @@ const App = () => {
 
     useEffect(() => {
         (async () => {
-            let storage = await chrome.storage.sync.get([
+            let storage = await chrome.storage.local.get([
                 STORAGE_SIMUALTIONS_KEY,
             ]);
 
@@ -75,6 +79,12 @@ const App = () => {
                     storage[STORAGE_SIMUALTIONS_KEY].length - 1
                 ];
 
+            latestSimulation.walletMessage = Array.isArray(
+                latestSimulation.walletMessage[0]
+            )
+                ? latestSimulation.walletMessage
+                : [latestSimulation.walletMessage];
+
             const simulationNetwork = Object.keys(NETWORK_CONFIG).filter(
                 (key) =>
                     NETWORK_CONFIG[key].chainId ==
@@ -88,6 +98,11 @@ const App = () => {
 
             dispatch(setNetwork(simulationNetwork));
             dispatch(setCurrentSimulation(latestSimulation));
+            dispatch(setCurrentSimulationTransactionIndex(0));
+
+            if (JSON.parse(process.env.REACT_APP_PERSIST_SIMULATION)) {
+                return;
+            }
             await updateSimulationState(
                 latestSimulation.id,
                 SimulationState.Viewed
@@ -105,16 +120,32 @@ const App = () => {
             currentPage = <Settings></Settings>;
             break;
     }
-    return (
-        <AppContainer>
-            <TopBar />
-            {!currentSimulation && currentPage}
-            {currentSimulation && (
+
+    let simulatorJSX;
+
+    switch (NETWORK_CONFIG[network].type) {
+        case 'cvm':
+            simulatorJSX = (
+                <TransactionSimulatorStarknet
+                    interceptedTransaction={currentSimulation}
+                    fullScreen={true}
+                ></TransactionSimulatorStarknet>
+            );
+            break;
+        case 'emv':
+        default:
+            simulatorJSX = (
                 <TransactionSimulator
                     interceptedTransaction={currentSimulation}
                     fullScreen={true}
                 ></TransactionSimulator>
-            )}
+            );
+    }
+    return (
+        <AppContainer>
+            <TopBar />
+            {!currentSimulation && currentPage}
+            {currentSimulation && simulatorJSX}
             <Navbar />
         </AppContainer>
     );

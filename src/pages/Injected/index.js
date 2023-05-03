@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const REQUEST_MANAGER = new RequestManager();
 
-const addQuickWalletProxy = (provider) => {
+const addQuickWalletProxyEVM = (provider) => {
     if (!provider || provider.isQuickWallet) {
         return;
     }
@@ -46,7 +46,7 @@ const addQuickWalletProxy = (provider) => {
 
     const requestHandler = {
         apply: async (target, thisArg, args) => {
-            console.log('Quick wallet inside request handler');
+            console.log('Quick wallet inside request handler', args);
             const [request] = args;
             if (!request || request.method != 'eth_sendTransaction') {
                 return Reflect.apply(target, thisArg, args);
@@ -126,17 +126,84 @@ const addQuickWalletProxy = (provider) => {
         Object.defineProperty(provider, 'sendAsync', {
             value: new Proxy(provider.sendAsync, sendAsyncHandler),
         });
+
         provider.isQuickWallet = true;
         console.log('Quick Wallet is running!');
     } catch (error) {
         // If we can't add ourselves to this provider, don't mess with other providers.
+        console.error('Failed to add proxy - ', error);
+    }
+};
+
+const addQuickWalletProxyStarknet = (provider) => {
+    if (!provider || provider.isQuickWallet) {
+        return;
+    }
+
+    const executeHandler = {
+        apply: async (target, thisArg, args) => {
+            console.log(
+                'Quick wallet inside execute handler',
+                target,
+                thisArg,
+                args
+            );
+
+            console.log('starting the debugger!!');
+            const response = await REQUEST_MANAGER.request({
+                chainId: thisArg.chainId,
+                walletMessage: args,
+                state: SimulationState.Intercepted,
+                appUrl: window.location.href,
+                id: uuidv4(),
+                accountAddress: provider.account.address,
+            });
+
+            if (response.type == Response.Continue) {
+                let params = args;
+                if (response.walletMessage) {
+                    params = response.walletMessage;
+                }
+                return Reflect.apply(target, thisArg, params);
+            }
+
+            throw new Error('User aborted');
+        },
+    };
+
+    const requestHandler = {
+        apply: async (target, thisArg, args) => {
+            console.log(
+                'Quick wallet inside request handler',
+                target,
+                thisArg,
+                args
+            );
+
+            return Reflect.apply(target, thisArg, args);
+        },
+    };
+
+    try {
+        Object.defineProperty(provider.account, 'execute', {
+            value: new Proxy(provider.account.execute, executeHandler),
+        });
+        Object.defineProperty(provider, 'request', {
+            value: new Proxy(provider.request, requestHandler),
+        });
+
+        provider.isQuickWallet = true;
+        console.log('Quick Wallet is running!');
+    } catch (error) {
+        // If we can't add ourselves to this provider, don't mess with other providers.
+        console.error('Failed to add proxy - ', error);
     }
 };
 
 if (window.ethereum) {
     console.log('QuickWallet: window.ethereum detected, adding proxy.');
 
-    addQuickWalletProxy(window.ethereum);
+    addQuickWalletProxyEVM(window.ethereum);
 } else {
     console.log('QuickWallet: window.ethereum not detected, defining.');
 
@@ -146,8 +213,21 @@ if (window.ethereum) {
             return ethCached;
         },
         set: (provider) => {
-            addQuickWalletProxy(provider);
+            addQuickWalletProxyEVM(provider);
             ethCached = provider;
         },
     });
 }
+
+const handleStarknetProxy = (attempt) => {
+    if (window?.starknet_argentX?.account) {
+        addQuickWalletProxyStarknet(window.starknet_argentX, 'starknet');
+    } else {
+        if (attempt === 1000) {
+            return;
+        }
+        setTimeout(() => handleStarknetProxy(attempt + 1), 100);
+    }
+};
+
+handleStarknetProxy(1);

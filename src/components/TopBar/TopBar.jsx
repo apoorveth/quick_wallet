@@ -82,7 +82,7 @@ const TopBar = () => {
                         : ''}
                 </WalletAddress> */}
             </WalletContainer>
-            <Select
+            {/* <Select
                 styles={{
                     control: (styles) => ({
                         ...styles,
@@ -116,7 +116,7 @@ const TopBar = () => {
                     });
                     dispatch(setNetwork(e.value));
                 }}
-            />
+            /> */}
         </TopBarContainer>
     );
 };

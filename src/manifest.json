@@ -1,8 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "3Speed",
-  "description": "A chrome extension to supercharge your web3 experience",
-  "options_page": "options.html",
+  "name": "Charged: Supercharge your web3 productivity",
+  "description": "A web3 transaction debugger to increase development speed",
   "background": { "service_worker": "background.bundle.js" },
   "action": {
     "default_popup": "popup.html",
@@ -18,7 +17,6 @@
       "css": ["content.styles.css"]
     }
   ],
-  "devtools_page": "devtools.html",
   "web_accessible_resources": [
     {
       "resources": ["content.styles.css", "icon_lightning.png","injectedScript.bundle.js"],

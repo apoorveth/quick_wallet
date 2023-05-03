@@ -8,12 +8,18 @@ import Editor from 'react-simple-code-editor';
 import cross from '../../assets/img/cross.png';
 import axios from 'axios';
 import { ethers } from 'ethers';
-import { getInputDataWithoutAbi } from '../../services/transactions';
+import {
+    getInputDataWithoutAbi,
+    getOutputDataFromInput,
+} from '../../services/transactions';
 import { getTransaction } from '../../services/scan';
 import { useDispatch, useSelector } from 'react-redux';
 import {
     selectCurrentSimulation,
+    selectCurrentSimulationTransactionIndex,
     selectNetwork,
+    setCurrentSimulationTransactionIndex,
+    setCurrentSimulationWalletMessage,
     setNetwork,
 } from '../../features/walletSlice';
 import NETWORK_CONFIG from '../../config/networks';
@@ -24,9 +30,16 @@ import { selectSettingWithKey } from '../../features/userSlice';
 import { updateWalletMessageAndState } from '../../lib/storage';
 import { SimulationState } from '../../lib/request';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCopy, faPlay } from '@fortawesome/free-solid-svg-icons';
+import {
+    faCaretLeft,
+    faCaretRight,
+    faCopy,
+    faPlay,
+} from '@fortawesome/free-solid-svg-icons';
 import MetamaskImage from '../../assets/img/metamask.png';
 import mixpanel from 'mixpanel-browser';
+import _ from 'lodash';
+import * as starknet from 'starknet';
 
 const OpacityContainer = styled.div`
     position: fixed;
@@ -84,7 +97,7 @@ const HeadingRow = styled.div`
     color: white;
     background-color: #2d2d2d;
     border-bottom: 2px solid rgb(58, 58, 58);
-    width: 100%;
+    width: -webkit-fill-available;
     left: 0;
     position: absolute;
     top: 0;
@@ -93,6 +106,7 @@ const HeadingRow = styled.div`
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+    z-index: 1;
 `;
 
 const HeadingRowRightContainer = styled.div`
@@ -109,7 +123,8 @@ const Subheading = styled.div`
     color: white;
     font-size: 3vh;
     text-align: left;
-    /* margin-top: 3vh; */
+    display: flex;
+    align-items: center;
 `;
 
 const CloseIcon = styled.img`
@@ -130,7 +145,6 @@ const SimulateButton = styled.div`
     padding-right: 20px;
     margin-right: 20px;
     cursor: pointer;
-    width: ${(props) => (props.interceptedTransaction ? '25%' : '40%')};
     justify-content: center;
     display: flex;
     align-items: center;
@@ -147,14 +161,11 @@ const ForwardToWalletButton = styled.div`
     border-radius: 50px;
     font-size: 2.4vh;
     font-family: GilmerMedium;
-    /* padding-top: 7px;
-    padding-bottom: 5px; */
     height: 32px;
     padding-left: 20px;
     padding-right: 20px;
     margin-right: 20px;
     cursor: pointer;
-    width: 12%;
     justify-content: space-around;
     display: flex;
     align-items: center;
@@ -313,6 +324,61 @@ const Loader = styled.div`
     }
 `;
 
+const DecodeLoader = styled.div`
+    border-width: 3px;
+    border-style: solid;
+    border-color: transparent rgb(236 236 236) rgb(236 236 236);
+    border-image: initial;
+    border-radius: 50%;
+    width: 13px;
+    height: 13px;
+    animation: 1s linear 0s infinite normal none running spin;
+    margin-left: 10px;
+
+    /* Safari */
+    @-webkit-keyframes spin {
+        0% {
+            -webkit-transform: rotate(0deg);
+        }
+        100% {
+            -webkit-transform: rotate(360deg);
+        }
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+`;
+
+const EditorContainer = styled.div`
+    max-height: 80%;
+    overflow: auto;
+    border: 1px solid #7b7b7b;
+`;
+
+const TransactionPageContainer = styled.div`
+    display: flex;
+    flex-direction: row;
+    margin-right: 4%;
+    align-items: center;
+    justify-content: center;
+`;
+
+const TransactionPage = styled.div`
+    font-size: 1.4rem;
+    margin-left: 3px;
+    margin-right: 3px;
+`;
+
+const TransactionPageChangeCaret = styled(FontAwesomeIcon)`
+    cursor: pointer;
+`;
+
 const EditorStyles = {
     fontFamily: '"Fira code", "Fira Mono", monospace',
     fontSize: 12,
@@ -323,48 +389,45 @@ const EditorStyles = {
 };
 
 const simulationKeys = {
-    from: { convertToNumber: false },
-    to: { convertToNumber: false },
-    value: { convertToNumber: true },
-    data: { convertToNumber: false },
-    gas: { convertToNumber: true },
-    gasPrice: { convertToNumber: true },
-};
-
-const simulationEventConfiguation = {
-    TransferIn: {
-        displayName: 'Transfer to wallet',
-        rowColor: '#00ff0026',
-    },
-    TransferOut: {
-        displayName: 'Transfer from wallet',
-        rowColor: '#ff000040',
-    },
-    ApprovalForAll: {
-        displayName: 'Token Approval',
-        rowColor: '#ffd70040',
-    },
+    contractAddress: { convertToNumber: false },
+    entrypoint: { convertToNumber: false },
+    calldata: { convertToNumber: true },
 };
 
 const filterSimulatorKeys = (obj) => {
     let data = {};
     Object.entries(obj)
         .filter(([key, value]) => Object.keys(simulationKeys).includes(key))
-        .map(([key, value]) => {
-            data[key] = !simulationKeys[key].convertToNumber
-                ? value
-                : Number(value);
+        .forEach(([key, value]) => {
+            if (!simulationKeys[key].convertToNumber) {
+                data[key] = value;
+                return;
+            }
+            if (!Array.isArray(value)) {
+                data[key] = Number(value);
+                return;
+            }
+
+            console.log(
+                'going to filter with convert to number as true!! - ',
+                value
+            );
+            value = value.map((item) =>
+                !String(item).startsWith('0x')
+                    ? item
+                    : starknet.number.toBN(item).toString()
+            );
+            data[key] = value;
         });
     return JSON.stringify(data, null, 4);
 };
 
-const TransactionSimulator = ({
-    closeSimulator,
-    hash,
-    interceptedTransaction,
-    fullScreen,
-}) => {
-    const [simulatorData, setSimulatorData] = useState('{}');
+const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
+    const interceptedTransaction = useSelector(selectCurrentSimulation);
+    const transactionIndex = useSelector(
+        selectCurrentSimulationTransactionIndex
+    );
+
     const [decodedInputData, setDecodedInputData] = useState('{}');
     const [contractFunctionName, setContractFunctionName] = useState(false);
     const [contractAbi, setContractAbi] = useState([]);
@@ -372,87 +435,55 @@ const TransactionSimulator = ({
     const [inputDecodeFailed, setInputDecodeFailed] = useState(false);
     const [manualImplementationAddress, setManualImplementationAddress] =
         useState(false);
-    const [transaction, setTransaction] = useState({});
+    const [transaction, setTransaction] = useState(
+        interceptedTransaction.walletMessage[0][transactionIndex]
+    );
+    console.log('this is the txn - ', interceptedTransaction);
+    const [simulatorData, setSimulatorData] = useState(
+        filterSimulatorKeys(transaction)
+    );
     const network = useSelector(selectNetwork);
     const [assetChanges, setAssetChanges] = useState();
     const [simulationStatus, setSimulationStatus] = useState(false);
+    const [isDecodingInput, setIsDecodingInput] = useState(false);
+
     const gridRef = useRef();
     const dispatch = useDispatch();
     const [columnDefs, setColumnDefs] = useState([
+        {
+            field: 'Type',
+            cellRenderer: (params) => params.data.name,
+            resizable: true,
+        },
         {
             field: 'Token',
             cellRenderer: (params) => {
                 return (
                     <CellImageAndText
-                        img={params.data.image}
-                        text={params.data.name}
+                        img={params.data.tokenImage}
+                        text={params.data.tokenName}
                     ></CellImageAndText>
                 );
             },
             resizable: true,
         },
         {
-            field: 'Type',
-            valueFormatter: (params) => {
-                if (simulationEventConfiguation[params.data.type]) {
-                    return simulationEventConfiguation[params.data.type]
-                        .displayName;
-                }
-                return 'Unknown';
-            },
-            resizable: true,
-        },
-        {
             field: 'Value',
-            valueFormatter: (params) => {
-                if (params.data.tokenType == 'ERC721') return 1;
-                return Number(params.data.amount) / 10 ** params.data.decimals;
-            },
+            cellRenderer: (params) => params.data.value,
             resizable: true,
         },
     ]);
-    const tenderlyApiKey = useSelector(selectSettingWithKey('tenderlyApiKey'));
-    const tenderlyUsername = useSelector(
-        selectSettingWithKey('tenderlyUsername')
-    );
-    const tenderlyProjectName = useSelector(
-        selectSettingWithKey('tenderlyProjectName')
-    );
     const defaultColDef = useMemo(() => ({
         sortable: true,
     }));
     const [simulationLoading, setSimulationLoading] = useState(false);
     const [firstTimeSimulation, setFirstTimeSimulation] = useState(false);
-    const currentSimulation = useSelector(selectCurrentSimulation);
 
-    //setting transaction details
     useEffect(() => {
-        (async () => {
-            if (interceptedTransaction) {
-                let mappedTransaction =
-                    interceptedTransaction.walletMessage.params[0];
-                setTransaction(mappedTransaction);
-                mixpanel.track('NEW_INTERCEPTED_SIMULATION', {
-                    transaction: mappedTransaction,
-                });
-                return;
-            }
-            let txResponse = await getTransaction(network, hash);
-            if (typeof txResponse.result != 'object') {
-                mixpanel.track('FAILED_TRANSACTION_GET', {
-                    transaction: txResponse,
-                });
-                return;
-            }
-
-            mixpanel.track('NEW_TRANSACTION_SIMULATION', {
-                transaction: txResponse.result,
-            });
-            setTransaction({
-                ...txResponse.result,
-                data: txResponse.result.input,
-            });
-        })();
+        mixpanel.track('STARKNET_NEW_INTERCEPTED_SIMULATION', {
+            transaction: transaction,
+        });
+        updateSimulatorData(filterSimulatorKeys(transaction));
     }, []);
 
     useEffect(() => {
@@ -462,16 +493,29 @@ const TransactionSimulator = ({
     }, [gridRef, assetChanges]);
 
     useEffect(() => {
-        (async () => {
-            setSimulatorData(filterSimulatorKeys(transaction));
+        const newTransaction =
+            interceptedTransaction.walletMessage[0][transactionIndex];
+        setTransaction(newTransaction);
+        setSimulatorData(filterSimulatorKeys(newTransaction));
+        setDecodedInputData('{}');
+        setContractFunctionName(false);
+    }, [transactionIndex]);
 
+    useEffect(() => {
+        (async () => {
+            if (_.isEmpty(transaction)) return;
+
+            setIsDecodingInput(true);
             const { abi, decodedInput, functionData, failedDecode } =
                 await getInputDataWithoutAbi({
-                    to: manualImplementationAddress || transaction.to,
-                    data: transaction.data,
-                    chainId: NETWORK_CONFIG[network].chainId,
+                    to:
+                        manualImplementationAddress ||
+                        transaction.contractAddress,
+                    data: transaction.calldata,
                     network,
+                    functionName: transaction.entrypoint,
                 });
+            setIsDecodingInput(false);
             if (!abi) return;
             if (failedDecode) {
                 console.log('failed to decode input');
@@ -495,105 +539,89 @@ const TransactionSimulator = ({
     //get asset changes on load
     useEffect(() => {
         if (firstTimeSimulation) return;
-        if (!JSON.parse(simulatorData).from) return;
-        getAssetChanges();
+        if (!JSON.parse(simulatorData).calldata) return;
+        simulate();
         setFirstTimeSimulation(true);
     }, [simulatorData]);
+
+    const updateSimulatorData = (data) => {
+        setSimulatorData(data);
+        dispatch(
+            setCurrentSimulationWalletMessage({
+                index: transactionIndex,
+                newMessage: typeof data == 'string' ? JSON.parse(data) : data,
+            })
+        );
+    };
 
     const decodedInputChange = (code) => {
         if (inputDecodeFailed) return;
         let data = JSON.parse(simulatorData);
-        try {
-            let contractInterface = new ethers.Interface(contractAbi);
-            let inputEncoded = contractInterface.encodeFunctionData(
-                contractFunctionName,
-                Object.values(JSON.parse(code))
-            );
-            data.data = inputEncoded;
-        } catch (err) {
-            data.data = 'invalid_input';
-        }
+        data.calldata = getOutputDataFromInput({
+            functionName: contractFunctionName,
+            inputStr: code,
+            abi: contractAbi,
+            network,
+        });
         setDecodedInputData(code);
-        setSimulatorData(JSON.stringify(data, null, 4));
+        updateSimulatorData(JSON.stringify(data, null, 4));
     };
 
     const simulate = async (type) => {
         let simulatorDataJson = JSON.parse(simulatorData);
-        mixpanel.track('SIMULATE_TRANSACTION', {
+        mixpanel.track('STARKNET_SIMULATE_TRANSACTION', {
             type: type,
             simulatorData: simulatorDataJson,
         });
-        const response = await axios.post(
-            `${process.env.REACT_APP_BACKEND_BASE_URL}/v1/simulator/simulate`,
-            {
+
+        let response;
+        try {
+            response = await axios.post(
+                `${process.env.REACT_APP_BACKEND_BASE_URL}/v1/simulator/simulate`,
+                {
+                    chainId: NETWORK_CONFIG[network].chainId,
+                    from: interceptedTransaction.accountAddress,
+                    calldata: starknet.transaction.fromCallsToExecuteCalldata(
+                        interceptedTransaction.walletMessage[0]
+                    ),
+                    simulatorType: 'STARKNET_FULL',
+                }
+            );
+        } catch (err) {
+            mixpanel.track('STARKNET_FAILED_SIMULATION', {
                 chainId: NETWORK_CONFIG[network].chainId,
-                from: simulatorDataJson.from,
-                to: simulatorDataJson.to,
-                gas: simulatorDataJson.gas,
-                data: simulatorDataJson.data,
-                simulatorType: type,
-                ...(type == 'DETAILED'
-                    ? { tenderlyApiKey, tenderlyUsername, tenderlyProjectName }
-                    : {}),
-                ...(simulatorDataJson.value
-                    ? {
-                          value: `0x${Number(simulatorDataJson.value).toString(
-                              16
-                          )}`,
-                      }
-                    : {}),
-            }
+                from: interceptedTransaction.accountAddress,
+                calldata: starknet.transaction.fromCallsToExecuteCalldata(
+                    interceptedTransaction.walletMessage[0]
+                ),
+            });
+            response = {
+                data: {
+                    success: false,
+                    errorCode:
+                        'Failed to simulate transaction. There seem to be an issue with our code, we will fix it ASAP!',
+                },
+            };
+        }
+
+        setSimulationStatus({
+            success: response.data.success,
+            errorMessage: response.data.errorCode,
+        });
+        setAssetChanges(response.data.simulation.formattedEvents);
+        setSimulationResults(
+            JSON.stringify(response.data.simulation.raw, null, 4)
         );
         return response.data;
     };
 
-    const getDetailedSimulation = async () => {
-        try {
-            if (!tenderlyApiKey) {
-                setSimulationResults(
-                    JSON.stringify(
-                        {
-                            message:
-                                'Enter your tenderly API key from the settings page to get a detailed simulation',
-                        },
-                        null,
-                        4
-                    )
-                );
-                return;
-            }
-            let response = await simulate('DETAILED');
-            setSimulationResults(JSON.stringify(response, null, 4));
-        } catch (err) {
-            console.error('Failed to simulate transaction - ', err);
-            setSimulationResults(JSON.stringify(err.response.data, null, 4));
-        }
-    };
-
-    const getAssetChanges = async () => {
-        showLoadingOverlayAssetChanges();
-        try {
-            let response = await simulate('ASSET_CHANGES');
-            setSimulationStatus({
-                success: response.success,
-                errorMessage: response.errorMessage,
-            });
-            if (response.success) {
-                setAssetChanges(response.simulation.events);
-            } else {
-                throw 'Simulation failed';
-            }
-        } catch (err) {
-            setAssetChanges([]);
-        }
-        hideLoadingOverlayAssetChanges();
-    };
-
     const simulateTransaction = async () => {
-        mixpanel.track('SIMULATE_TRANSACTION_CLICK');
+        mixpanel.track('STARKNET_SIMULATE_TRANSACTION_CLICK');
         setSimulationLoading(true);
-        let promises = [getDetailedSimulation(), getAssetChanges()];
+        showLoadingOverlayAssetChanges();
+        let promises = [simulate()];
         await Promise.all(promises);
+        hideLoadingOverlayAssetChanges();
         setSimulationLoading(false);
     };
 
@@ -610,7 +638,7 @@ const TransactionSimulator = ({
     };
 
     const handleSimulatorClose = async () => {
-        mixpanel.track('SIMULATOR_CLOSED');
+        mixpanel.track('STARKNET_SIMULATOR_CLOSED');
         if (!interceptedTransaction) {
             closeSimulator();
             return;
@@ -621,7 +649,7 @@ const TransactionSimulator = ({
     const continueToWallet = async () => {
         console.log('inside continueToWallet');
         let simulationDataJson = JSON.parse(simulatorData);
-        mixpanel.track('FORWARD_SIMULATION_TO_WALLET', {
+        mixpanel.track('STARKNET_FORWARD_SIMULATION_TO_WALLET', {
             simulatorData: simulationDataJson,
         });
         let newParams = {};
@@ -634,16 +662,29 @@ const TransactionSimulator = ({
             }
         });
 
-        let newWalletMessage = { ...currentSimulation.walletMessage };
-        newWalletMessage.params = [newParams];
-
-        console.log('this is new wallet - ', newWalletMessage);
         await updateWalletMessageAndState(
-            currentSimulation.id,
-            newWalletMessage,
+            interceptedTransaction.id,
+            interceptedTransaction.walletMessage,
             SimulationState.Confirmed
         );
         handleSimulatorClose();
+    };
+
+    const incrementTransactionIndex = () => {
+        if (
+            transactionIndex ==
+            interceptedTransaction?.walletMessage[0].length - 1
+        ) {
+            return;
+        }
+        dispatch(setCurrentSimulationTransactionIndex(transactionIndex + 1));
+    };
+
+    const decrementTransactionIndex = () => {
+        if (transactionIndex == 0) {
+            return;
+        }
+        dispatch(setCurrentSimulationTransactionIndex(transactionIndex - 1));
     };
 
     return (
@@ -653,6 +694,28 @@ const TransactionSimulator = ({
                 <HeadingRow>
                     <HeadingText>Transaction Simulator</HeadingText>
                     <HeadingRowRightContainer>
+                        {interceptedTransaction?.walletMessage[0].length >
+                            1 && (
+                            <TransactionPageContainer>
+                                <TransactionPageChangeCaret
+                                    icon={faCaretLeft}
+                                    size="xs"
+                                    onClick={decrementTransactionIndex}
+                                ></TransactionPageChangeCaret>
+                                <TransactionPage>
+                                    {transactionIndex + 1}/
+                                    {
+                                        interceptedTransaction?.walletMessage[0]
+                                            .length
+                                    }
+                                </TransactionPage>
+                                <TransactionPageChangeCaret
+                                    icon={faCaretRight}
+                                    size="xs"
+                                    onClick={incrementTransactionIndex}
+                                ></TransactionPageChangeCaret>
+                            </TransactionPageContainer>
+                        )}
                         <SimulateButton
                             isLoading={simulationLoading}
                             onClick={simulateTransaction}
@@ -680,32 +743,37 @@ const TransactionSimulator = ({
                     <TransactionDetailsContainer>
                         {Object.entries(transaction)
                             .filter(([_, value]) => value)
-                            .map(([key, value]) => (
-                                <TransactionDetail
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(value);
-                                    }}
-                                >
-                                    <TransactionDetailKey>
-                                        {key}:{' '}
-                                    </TransactionDetailKey>
-                                    <TransactionDetailValue>
-                                        {value.length > 20
-                                            ? value.substring(0, 10) +
-                                              '...' +
-                                              value.substring(
-                                                  value.length - 10,
-                                                  value.length
-                                              )
-                                            : value}
-                                    </TransactionDetailValue>
-                                    <CopyIcon
-                                        icon={faCopy}
-                                        color="#898989"
-                                        size="sm"
-                                    />
-                                </TransactionDetail>
-                            ))}
+                            .map(([key, value]) => {
+                                let valueStr = JSON.stringify(value);
+                                return (
+                                    <TransactionDetail
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(
+                                                valueStr
+                                            );
+                                        }}
+                                    >
+                                        <TransactionDetailKey>
+                                            {key}:{' '}
+                                        </TransactionDetailKey>
+                                        <TransactionDetailValue>
+                                            {valueStr.length > 20
+                                                ? valueStr.substring(0, 10) +
+                                                  '...' +
+                                                  valueStr.substring(
+                                                      valueStr.length - 10,
+                                                      valueStr.length
+                                                  )
+                                                : valueStr}
+                                        </TransactionDetailValue>
+                                        <CopyIcon
+                                            icon={faCopy}
+                                            color="#898989"
+                                            size="sm"
+                                        />
+                                    </TransactionDetail>
+                                );
+                            })}
                     </TransactionDetailsContainer>
                     <Subheading style={{ marginTop: '3vh' }}>
                         Basic Simulation
@@ -744,54 +812,42 @@ const TransactionSimulator = ({
                             animateRows={true} // Optional - set to 'true' to have rows animate when sorted
                             rowSelection="multiple" // Options - allows click selection of rows
                             getRowStyle={(params) => {
-                                if (
-                                    simulationEventConfiguation[
-                                        params.data.type
-                                    ]
-                                ) {
-                                    return {
-                                        background:
-                                            simulationEventConfiguation[
-                                                params.data.type
-                                            ].rowColor,
-                                    };
-                                }
+                                return {
+                                    background: params.data.color,
+                                };
                             }}
+                            enableCellTextSelection={true}
                         />
                     </SimulationTable>
-                    <Subheading style={{ marginTop: '3vh' }}>
-                        Transaction Details
-                    </Subheading>
-                    <Editor
-                        value={simulatorData}
-                        onValueChange={(code) => {
-                            setSimulatorData(code);
-                        }}
-                        highlight={(code) => highlight(code, languages.js)}
-                        padding={10}
-                        style={{
-                            ...EditorStyles,
-                            marginTop: '2%',
-                        }}
-                    />
+
                     <Subheading style={{ marginTop: '3vh' }}>
                         Input Decoded
+                        {isDecodingInput && <DecodeLoader />}
                     </Subheading>
                     {!inputDecodeFailed && (
                         <FunctionName>{contractFunctionName}()</FunctionName>
                     )}
-                    <Editor
-                        value={decodedInputData}
-                        onValueChange={decodedInputChange}
-                        highlight={(code) => highlight(code, languages.js)}
-                        padding={10}
-                        style={{
-                            ...EditorStyles,
-                            marginTop: inputDecodeFailed ? '2%' : '0%',
-                        }}
-                        inputDecodeFailed={inputDecodeFailed}
-                    />
-                    {inputDecodeFailed && (
+                    <EditorContainer
+                        style={{ marginTop: inputDecodeFailed ? '2%' : '0%' }}
+                    >
+                        <Editor
+                            value={decodedInputData}
+                            key={
+                                _.isPlainObject(decodedInputData) &&
+                                _.isEmpty(JSON.parse(decodedInputData))
+                                    ? 'emptyDecodedInput'
+                                    : 'filledDecodedInput'
+                            }
+                            onValueChange={decodedInputChange}
+                            highlight={(code) => highlight(code, languages.js)}
+                            padding={10}
+                            style={{
+                                ...EditorStyles,
+                            }}
+                            inputDecodeFailed={inputDecodeFailed}
+                        />
+                    </EditorContainer>
+                    {/* {inputDecodeFailed && (
                         <DecodeErrorContainer>
                             <DecodeErrorMessage>
                                 Is the{' '}
@@ -801,7 +857,7 @@ const TransactionSimulator = ({
                                     ].scanBaseUrl.replace(
                                         'api.',
                                         ''
-                                    )}/address/${transaction.to}`}
+                                    )}/contract/${transaction.contractAddress}`}
                                     target="_blank"
                                 >
                                     to
@@ -820,24 +876,43 @@ const TransactionSimulator = ({
                                 ></ImplementationContractInput>
                             </ImplementationContractInputContainer>
                         </DecodeErrorContainer>
-                    )}
+                    )} */}
+
+                    <Subheading style={{ marginTop: '3vh' }}>
+                        Transaction Details
+                    </Subheading>
+                    <EditorContainer style={{ marginTop: '2%' }}>
+                        <Editor
+                            value={simulatorData}
+                            onValueChange={(code) => {
+                                updateSimulatorData(code);
+                            }}
+                            highlight={(code) => highlight(code, languages.js)}
+                            padding={10}
+                            style={{
+                                ...EditorStyles,
+                            }}
+                        />
+                    </EditorContainer>
+
                     <Subheading style={{ marginTop: '3vh' }}>
                         Detailed Simulation
                     </Subheading>
-                    <Editor
-                        value={simulationResults}
-                        onValueChange={() => {}}
-                        highlight={(code) => highlight(code, languages.js)}
-                        padding={10}
-                        style={{
-                            ...EditorStyles,
-                            marginTop: '2%',
-                        }}
-                    />
+                    <EditorContainer style={{ marginTop: '2%' }}>
+                        <Editor
+                            value={simulationResults}
+                            onValueChange={() => {}}
+                            highlight={(code) => highlight(code, languages.js)}
+                            padding={10}
+                            style={{
+                                ...EditorStyles,
+                            }}
+                        />
+                    </EditorContainer>
                 </DetailsScrollContainer>
             </SimulatorContainer>
         </>
     );
 };
 
-export default TransactionSimulator;
+export default TransactionSimulatorStarknet;

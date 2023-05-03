@@ -38,7 +38,7 @@ export const selectSettingWithKey = (key) => (state) =>
     state.user.storageSettings[key];
 
 export const initUser = () => async (dispatch, getState) => {
-    let storage = await chrome.storage.sync.get([STORAGE_USER_ID_KEY]);
+    let storage = await chrome.storage.local.get([STORAGE_USER_ID_KEY]);
     if (!storage[STORAGE_USER_ID_KEY]) {
         await setStorage(STORAGE_USER_ID_KEY, uuidv4());
         return;
@@ -67,7 +67,7 @@ export const updateSetting = (key, value) => async (dispatch, getState) => {
 };
 
 const initSettings = () => async (dispatch, getState) => {
-    let storage = await chrome.storage.sync.get([STORAGE_SETTINGS_KEY]);
+    let storage = await chrome.storage.local.get([STORAGE_SETTINGS_KEY]);
     if (!storage[STORAGE_SETTINGS_KEY]) {
         const defaultSettings = selectAllSettings(getState());
         mixpanel.track('SETTINGS_INIT', {

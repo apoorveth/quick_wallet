@@ -1,4 +1,8 @@
 const SETTINGS_CONFIG = {
+    generalCategory: {
+        type: 'seperator',
+        title: 'General Settings',
+    },
     debugger: {
         labelTitle: 'Debugger',
         type: 'toggle',
@@ -7,12 +11,16 @@ const SETTINGS_CONFIG = {
             'Edit and simulate transactions before sendning them on chain',
     },
     minimizedMetamask: {
-        labelTitle: 'Minimize Metamask',
+        labelTitle: 'Minimize Wallet',
         labelDescription:
-            "Force metamask to open in a minimized view on macOS. It's in beta so it might break in some cases.",
+            "Force wallet to open in a minimized view on macOS. It's in beta so it might break in some cases.",
         type: 'toggle',
         defaultValue: false,
         beta: true,
+    },
+    evmCategory: {
+        type: 'seperator',
+        title: 'EVM Settings',
     },
     tenderlyApiKey: {
         labelTitle: 'Tenderly API Key',

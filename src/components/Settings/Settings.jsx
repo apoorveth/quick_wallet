@@ -110,6 +110,22 @@ const SettingInput = styled.input`
     }
 `;
 
+const Seperator = styled.div`
+    text-align: left;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 3%;
+    margin-bottom: 1%;
+    color: #000000;
+    background-color: white;
+    width: fit-content;
+    padding-left: 12px;
+    padding-right: 12px;
+    border-radius: 20px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+`;
+
 const ToggleSetting = ({ checked, onChange }) => {
     return (
         <label>
@@ -149,6 +165,12 @@ const Settings = () => {
                             value={settings[key]}
                             type={value.inputType ? value.inputType : 'text'}
                         ></SettingInput>
+                    );
+                } else if (value.type == 'seperator') {
+                    return (
+                        <>
+                            <Seperator>{value.title}</Seperator>
+                        </>
                     );
                 }
                 return (

@@ -35,7 +35,10 @@ const Navbar = () => {
         <Container>
             {Object.values(NAVBAR_PAGES).map((obj) => (
                 <StyledFontAwesomeIcon
-                    style={{ marginRight: '4%' }}
+                    style={{
+                        marginRight: '4%',
+                        display: obj.active ? 'block' : 'none',
+                    }}
                     icon={obj.icon}
                     color={obj.value == selectedPage ? 'white' : 'grey'}
                     onClick={() => navigate(obj.value)}

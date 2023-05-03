@@ -6,10 +6,12 @@ export const NAVBAR_PAGES = {
     transactions: {
         icon: faExchange,
         value: 'transactions',
+        active: false,
     },
     settings: {
         icon: faCog,
         value: 'settings',
+        active: true,
     },
 };
 
