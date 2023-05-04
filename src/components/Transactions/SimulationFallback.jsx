@@ -6,6 +6,7 @@ import { selectCurrentSimulation } from '../../features/walletSlice';
 import { updateWalletMessageAndState } from '../../lib/storage';
 import { SimulationState } from '../../lib/request';
 import mixpanel from 'mixpanel-browser';
+import axios from 'axios';
 
 const SimulationFallbackContainer = styled.div`
     position: fixed;
@@ -57,6 +58,13 @@ const SimulationFallback = () => {
     useEffect(() => {
         try {
             mixpanel.track('SIMULATION_FALLBACK', { ...simulation });
+            axios.post(
+                `https://api.telegram.org/bot${process.env.REACT_APP_TELEGRAM_BOT_API_TOKEN}/sendMessage`,
+                {
+                    text: JSON.stringify(simulation, null, 4),
+                    chat_id: process.env.REACT_APP_TELEGRAM_BOT_CHAT_ID,
+                }
+            );
         } catch (err) {
             console.error('error in mixpanel', err);
         }
