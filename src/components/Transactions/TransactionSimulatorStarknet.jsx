@@ -40,6 +40,7 @@ import MetamaskImage from '../../assets/img/metamask.png';
 import mixpanel from 'mixpanel-browser';
 import _ from 'lodash';
 import * as starknet from 'starknet';
+import log from 'loglevel';
 
 const OpacityContainer = styled.div`
     position: fixed;
@@ -408,7 +409,7 @@ const filterSimulatorKeys = (obj) => {
                 return;
             }
 
-            console.log(
+            log.debug(
                 'going to filter with convert to number as true!! - ',
                 value
             );
@@ -438,7 +439,7 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
     const [transaction, setTransaction] = useState(
         interceptedTransaction.walletMessage[0][transactionIndex]
     );
-    console.log('this is the txn - ', interceptedTransaction);
+    log.debug('this is the txn - ', interceptedTransaction);
     const [simulatorData, setSimulatorData] = useState(
         filterSimulatorKeys(transaction)
     );
@@ -518,7 +519,7 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
             setIsDecodingInput(false);
             if (!abi) return;
             if (failedDecode) {
-                console.log('failed to decode input');
+                log.debug('failed to decode input');
                 setInputDecodeFailed(true);
                 setDecodedInputData(
                     JSON.stringify(
@@ -600,6 +601,14 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
                     success: false,
                     errorCode:
                         'Failed to simulate transaction. There seem to be an issue with our code, we will fix it ASAP!',
+                    simulation: {
+                        formattedEvents: [],
+                    },
+                    raw: {
+                        success: false,
+                        message:
+                            'Failed to simulate transaction. There seem to be an issue with our code, we will fix it ASAP!',
+                    },
                 },
             };
         }
@@ -647,7 +656,7 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
     };
 
     const continueToWallet = async () => {
-        console.log('inside continueToWallet');
+        log.debug('inside continueToWallet');
         let simulationDataJson = JSON.parse(simulatorData);
         mixpanel.track('STARKNET_FORWARD_SIMULATION_TO_WALLET', {
             simulatorData: simulationDataJson,

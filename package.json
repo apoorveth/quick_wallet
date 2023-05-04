@@ -1,6 +1,6 @@
 {
   "name": "charged",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "A web3 transaction debugger to increase development speed",
   "license": "MIT",
   "repository": {
@@ -29,6 +29,7 @@
     "eth-rpc-errors": "^4.0.3",
     "ethers": "^6.1.0",
     "lodash": "^4.17.21",
+    "loglevel": "^1.8.1",
     "mixpanel-browser": "^2.46.0",
     "pino": "^8.11.0",
     "prismjs": "^1.29.0",

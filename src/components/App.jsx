@@ -27,6 +27,7 @@ import { SimulationState } from '../lib/request';
 import { POPUP_CONNECT_PREFIX } from '../lib/constants';
 import { NAVBAR_PAGES, selectPage } from '../features/navbarSlice';
 import TransactionSimulatorStarknet from './Transactions/TransactionSimulatorStarknet';
+import log from 'loglevel';
 
 const AppContainer = styled.div`
     top: 0px;
@@ -73,17 +74,17 @@ const App = () => {
                 dispatch(setCurrentSimulation(false));
                 return;
             }
-            console.log('got simulatons - ', storage[STORAGE_SIMUALTIONS_KEY]);
+            log.debug('got simulatons - ', storage[STORAGE_SIMUALTIONS_KEY]);
             const latestSimulation =
                 storage[STORAGE_SIMUALTIONS_KEY][
                     storage[STORAGE_SIMUALTIONS_KEY].length - 1
                 ];
 
-            latestSimulation.walletMessage = Array.isArray(
-                latestSimulation.walletMessage[0]
-            )
-                ? latestSimulation.walletMessage
-                : [latestSimulation.walletMessage];
+            latestSimulation.walletMessage =
+                Array.isArray(latestSimulation.walletMessage[0]) ||
+                NETWORK_CONFIG[network].type === 'evm'
+                    ? latestSimulation.walletMessage
+                    : [latestSimulation.walletMessage];
 
             const simulationNetwork = Object.keys(NETWORK_CONFIG).filter(
                 (key) =>

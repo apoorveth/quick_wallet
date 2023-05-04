@@ -1,12 +1,13 @@
 import { ethers } from 'ethers';
 import { getSourceCode } from '../scan';
+import log from 'loglevel';
 
 export const getInputDataWithoutAbi = async ({ to, data, network }) => {
     let sourceCode = (await getSourceCode(network, to))[0];
     let abiString;
-    console.log('this is source code  - ', sourceCode);
+    log.debug('this is source code  - ', sourceCode);
     if (sourceCode.Proxy == '1') {
-        console.log("Its's an implementation contract");
+        log.debug("Its's an implementation contract");
         let implementationSourceCode = (
             await getSourceCode(network, sourceCode.Implementation)
         )[0];
@@ -43,11 +44,11 @@ const getInputData = ({ data, abi }) => {
         );
         let functionData = contractInterface.getFunction(data.substring(0, 10));
 
-        console.log('this is the decoded input - ', decodedInput);
+        log.debug('this is the decoded input - ', decodedInput);
         // functionData.inputs.forEach((param, index) => {
         //     decodedInput[param.name] = decodedArguments[index];
         // });
-        console.log('This is the final abi - ', abi);
+        log.debug('This is the final abi - ', abi);
         return { abi, decodedInput, functionData };
     } catch (err) {
         console.error('failed to decode with err - ', err);
@@ -56,7 +57,7 @@ const getInputData = ({ data, abi }) => {
 };
 
 const proxyToObject = (proxy) => {
-    console.log('this is proxy - ', proxy);
+    log.debug('this is proxy - ', proxy);
     let data;
     try {
         data = proxy.toObject();

@@ -12,9 +12,11 @@ import {
     STORAGE_SIMUALTIONS_KEY,
 } from '../../lib/storage';
 import { getDetfaultSettings } from '../../config/settings';
+import '../../config/loglevel';
+import log from 'loglevel';
 
-console.log('Content script works!');
-console.log('Must reload extension for modifications to take effect.');
+log.debug('Content script works!');
+log.debug('Must reload extension for modifications to take effect.');
 
 printLine("Using the 'printLine' function from the Print Module");
 
@@ -37,13 +39,13 @@ const maybeRemoveId = (id) => {
 
 listenToRequest(async (request) => {
     ids.push(request.id);
-    console.log('Quick wallet received a request');
+    log.debug('Quick wallet received a request');
     const settings =
         (await chrome.storage.local.get([STORAGE_SETTINGS_KEY])).settings ||
         getDetfaultSettings();
 
     if (settings.debugger) {
-        console.log('Quick wallet detected a new message for debugger');
+        log.debug('Quick wallet detected a new message for debugger');
         chrome.runtime.sendMessage({
             event: 'quick_wallet_add_simulation',
             simulation: request,
@@ -51,9 +53,7 @@ listenToRequest(async (request) => {
         return;
     }
     if (settings.minimizedMetamask) {
-        console.log(
-            'Quick wallet detected a new message for minimized metamask'
-        );
+        log.debug('Quick wallet detected a new message for minimized metamask');
         chrome.runtime.sendMessage({
             event: 'quick_wallet_open_dummy_page',
             simulation: request,
@@ -67,7 +67,7 @@ listenToRequest(async (request) => {
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
-    console.log('Inside the storage change listener - ', changes, area);
+    log.debug('Inside the storage change listener - ', changes, area);
     if (area !== 'local' || !changes[STORAGE_SIMUALTIONS_KEY]?.newValue) {
         return;
     }
@@ -79,14 +79,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
     newSimulations.forEach((simulation) => {
         // Either dispatch the corresponding event, or push the item to new simulations.
         if (simulation.state === SimulationState.Confirmed) {
-            console.log('FOUND A CONFIRMED SIMULATION - ', simulation);
+            log.debug('FOUND A CONFIRMED SIMULATION - ', simulation);
             dispatchResponse({
                 ...simulation,
                 type: Response.Continue,
             });
             maybeRemoveId(simulation.id);
         } else if (simulation.state === SimulationState.Rejected) {
-            console.log('FOUND A REJECTED SIMULATION - ', simulation);
+            log.debug('FOUND A REJECTED SIMULATION - ', simulation);
             dispatchResponse({
                 ...simulation,
                 type: Response.Reject,

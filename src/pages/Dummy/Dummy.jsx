@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import mixpanel from 'mixpanel-browser';
 import { STORAGE_USER_ID_KEY } from '../../lib/storage';
+import log from 'loglevel';
 
 if (process.env.REACT_APP_ENVIRONMENT == 'production') {
     mixpanel.init('5115eefb0d59ea87e002ddce0c9962b3', { debug: true });
@@ -14,7 +15,7 @@ const Dummy = () => {
             const storage = await chrome.storage.local.get([
                 STORAGE_USER_ID_KEY,
             ]);
-            console.log('got the storage - ', storage);
+            log.debug('got the storage - ', storage);
             if (storage[STORAGE_USER_ID_KEY]) {
                 mixpanel.identify(storage[STORAGE_USER_ID_KEY]);
             }

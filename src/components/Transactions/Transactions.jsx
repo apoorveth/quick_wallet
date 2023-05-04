@@ -19,6 +19,7 @@ import { getERC20Transactions, getTransactions } from '../../services/scan';
 import './Transactions.css';
 import CellImageAndText from '../AgGrid/CellImageAndText';
 import mixpanel from 'mixpanel-browser';
+import log from 'loglevel';
 
 const TransactionContainer = styled.div`
     padding-left: 1rem;
@@ -245,7 +246,7 @@ const Transactions = () => {
 
     // Example of consuming Grid Event
     const cellClickedListener = useCallback((event) => {
-        console.log('cellClicked', event);
+        log.debug('cellClicked', event);
         setIsSimulatorOpen(true);
 
         mixpanel.track('TRANSACTIONS_ROW_CLICK', {
@@ -276,11 +277,11 @@ const Transactions = () => {
         (async () => {
             let response = await axios.get('https://tokens.uniswap.org/');
             let result = {};
-            console.log('this is response from uniswap', response);
+            log.debug('this is response from uniswap', response);
             response.data.tokens.forEach((token) => {
                 result[token.symbol] = token.logoURI;
             });
-            console.log('this os result after the loop - ', result);
+            log.debug('this os result after the loop - ', result);
             setTokenImages(result);
         })();
     }, []);
@@ -291,7 +292,7 @@ const Transactions = () => {
         // gridRef.current.api.deselectAll();
     }, []);
 
-    console.log('logging token images - ', tokenImages);
+    log.debug('logging token images - ', tokenImages);
     return (
         <TransactionContainer>
             <NavbarContainer>

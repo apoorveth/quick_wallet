@@ -11,6 +11,7 @@ import walletLogo from '../../assets/img/wallet_logo.png';
 import Select from 'react-select';
 import NETWORK_CONFIG from '../../config/networks';
 import mixpanel from 'mixpanel-browser';
+import log from 'loglevel';
 
 const TopBarContainer = styled.div`
     background-color: #222222;
@@ -59,7 +60,7 @@ const networkOptions = Object.entries(NETWORK_CONFIG).map(([key, network]) => ({
     label: network.name,
 }));
 
-console.log('these are network options - ', networkOptions);
+log.debug('these are network options - ', networkOptions);
 
 const TopBar = () => {
     const dispatch = useDispatch();
@@ -69,7 +70,7 @@ const TopBar = () => {
     const selectedNetworkOption = networkOptions.filter(
         (n) => n.value == network
     )[0];
-    console.log('this is selected network option - ', selectedNetworkOption);
+    log.debug('this is selected network option - ', selectedNetworkOption);
     return (
         <TopBarContainer>
             <WalletContainer>

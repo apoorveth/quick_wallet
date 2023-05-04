@@ -2,6 +2,7 @@ import * as starknetjs from 'starknet';
 import { Provider, Contract } from 'starknet';
 import NETWORK_CONFIG from '../../config/networks';
 import * as starknetHardhat from '../../../utils/starknetHardhat';
+import log from 'loglevel';
 
 export const getInputDataWithoutAbi = async ({
     to,
@@ -13,7 +14,7 @@ export const getInputDataWithoutAbi = async ({
         sequencer: { network: NETWORK_CONFIG[network].sequencerNetwork },
     });
 
-    console.log('getting abi - ', to);
+    log.debug('getting abi - ', to);
     let abi = await getAbi({ provider, address: to });
     let promises = [
         isImplementation({ abi, address: to, provider }),
@@ -111,10 +112,10 @@ const getInputData = async ({ data, abi, entrypoint, to, provider }) => {
 };
 
 const getAbi = async ({ provider, address }) => {
-    console.log('getting abi for  - ', address);
+    log.debug('getting abi for  - ', address);
     const { abi } = await provider.getClassAt(address);
 
-    console.log('this is the abi i got - ', abi);
+    log.debug('this is the abi i got - ', abi);
     return abi;
 };
 

@@ -1,4 +1,5 @@
 import { getTransactionProvider } from '../factory/transactions.factory';
+import log from 'loglevel';
 
 export const getInputDataWithoutAbi = async ({
     to,
@@ -6,7 +7,7 @@ export const getInputDataWithoutAbi = async ({
     network,
     functionName,
 }) => {
-    console.log(
+    log.debug(
         'Getting input data without abi - ',
         to,
         data,

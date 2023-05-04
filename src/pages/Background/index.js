@@ -7,13 +7,14 @@ import {
     STORAGE_SIMUALTIONS_KEY,
     updateSimulationState,
 } from '../../lib/storage';
+import log from 'loglevel';
 
-console.log('This is the background page.', new Date().toTimeString());
-console.log('Put the background scripts here.');
+log.debug('This is the background page.', new Date().toTimeString());
+log.debug('Put the background scripts here.');
 
 chrome.runtime.onMessage.addListener(async (request) => {
-    console.log('Received request: ', request);
-    console.log('Not a duplicated request');
+    log.debug('Received request: ', request);
+    log.debug('Not a duplicated request');
     if (request.event == 'quick_wallet_add_simulation') {
         await addSimulation(request.simulation);
         chrome.windows.create(
@@ -27,7 +28,7 @@ chrome.runtime.onMessage.addListener(async (request) => {
                 left: 0,
             },
             () => {
-                console.log('Opened popup!');
+                log.debug('Opened popup!');
             }
         );
     } else if (request.event == 'quick_wallet_open_dummy_page') {
@@ -37,7 +38,7 @@ chrome.runtime.onMessage.addListener(async (request) => {
             chrome.windows.getCurrent(),
         ];
         const [_, platformInfo, window] = await Promise.all(promises);
-        console.log('this is the platform info');
+        log.debug('this is the platform info');
         if (platformInfo.os != 'mac' || window.state !== 'fullscreen') {
             await updateSimulationState(
                 request.simulation.id,
@@ -45,7 +46,7 @@ chrome.runtime.onMessage.addListener(async (request) => {
             );
             return;
         }
-        console.log('opening the dummy page');
+        log.debug('opening the dummy page');
         await addSimulation(request.simulation);
         chrome.windows.create(
             {
@@ -59,14 +60,14 @@ chrome.runtime.onMessage.addListener(async (request) => {
             },
             async (window) => {
                 setTimeout(async () => {
-                    console.log('Opened dummy!');
+                    log.debug('Opened dummy!');
                     await updateSimulationState(
                         request.simulation.id,
                         SimulationState.Confirmed
                     );
-                    console.log('updated simulation');
+                    log.debug('updated simulation');
                     await chrome.windows.remove(window.id);
-                    console.log('closing window');
+                    log.debug('closing window');
                 }, 500);
             }
         );

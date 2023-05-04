@@ -1,5 +1,6 @@
 import axios from 'axios';
 import NETWORK_CONFIG from '../config/networks';
+import log from 'loglevel';
 
 export const getTransactions = async (network, address) => {
     let response = await axios.get(
@@ -9,7 +10,7 @@ export const getTransactions = async (network, address) => {
 };
 
 export const getERC20Transactions = async (network, address) => {
-    console.log('this is the network - ', network);
+    log.debug('this is the network - ', network);
     let response = await axios.get(
         `https://${NETWORK_CONFIG[network].scanBaseUrl}/api?module=account&action=tokentx&address=${address}&startblock=0&endblock=999999999999&page=1&offset=10000&sort=desc&apikey=${NETWORK_CONFIG[network].scanApiKey}`
     );

@@ -6,6 +6,7 @@ import {
 } from '../../lib/request';
 import { ethErrors } from 'eth-rpc-errors';
 import { v4 as uuidv4 } from 'uuid';
+import log from 'loglevel';
 
 const REQUEST_MANAGER = new RequestManager();
 
@@ -46,7 +47,7 @@ const addQuickWalletProxyEVM = (provider) => {
 
     const requestHandler = {
         apply: async (target, thisArg, args) => {
-            console.log('Quick wallet inside request handler', args);
+            log.debug('Quick wallet inside request handler', args);
             const [request] = args;
             if (!request || request.method != 'eth_sendTransaction') {
                 return Reflect.apply(target, thisArg, args);
@@ -59,7 +60,7 @@ const addQuickWalletProxyEVM = (provider) => {
                 return Reflect.apply(target, thisArg, args);
             }
 
-            console.log('Quick wallet trying to start the popup');
+            log.debug('Quick wallet trying to start the popup');
             // Sending response.
             response = await REQUEST_MANAGER.request({
                 chainId: await provider.request({ method: 'eth_chainId' }),
@@ -128,7 +129,7 @@ const addQuickWalletProxyEVM = (provider) => {
         });
 
         provider.isQuickWallet = true;
-        console.log('Quick Wallet is running!');
+        log.debug('Quick Wallet is running!');
     } catch (error) {
         // If we can't add ourselves to this provider, don't mess with other providers.
         console.error('Failed to add proxy - ', error);
@@ -142,14 +143,14 @@ const addQuickWalletProxyStarknet = (provider) => {
 
     const executeHandler = {
         apply: async (target, thisArg, args) => {
-            console.log(
+            log.debug(
                 'Quick wallet inside execute handler',
                 target,
                 thisArg,
                 args
             );
 
-            console.log('starting the debugger!!');
+            log.debug('starting the debugger!!');
             const response = await REQUEST_MANAGER.request({
                 chainId: thisArg.chainId,
                 walletMessage: args,
@@ -173,7 +174,7 @@ const addQuickWalletProxyStarknet = (provider) => {
 
     const requestHandler = {
         apply: async (target, thisArg, args) => {
-            console.log(
+            log.debug(
                 'Quick wallet inside request handler',
                 target,
                 thisArg,
@@ -193,7 +194,7 @@ const addQuickWalletProxyStarknet = (provider) => {
         });
 
         provider.isQuickWallet = true;
-        console.log('Quick Wallet is running!');
+        log.debug('Quick Wallet is running!');
     } catch (error) {
         // If we can't add ourselves to this provider, don't mess with other providers.
         console.error('Failed to add proxy - ', error);
@@ -201,11 +202,11 @@ const addQuickWalletProxyStarknet = (provider) => {
 };
 
 if (window.ethereum) {
-    console.log('QuickWallet: window.ethereum detected, adding proxy.');
+    log.debug('QuickWallet: window.ethereum detected, adding proxy.');
 
     addQuickWalletProxyEVM(window.ethereum);
 } else {
-    console.log('QuickWallet: window.ethereum not detected, defining.');
+    log.debug('QuickWallet: window.ethereum not detected, defining.');
 
     let ethCached = undefined;
     Object.defineProperty(window, 'ethereum', {

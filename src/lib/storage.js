@@ -31,7 +31,6 @@ export const addSimulation = async (simulation) => {
 };
 
 export const updateWalletMessageAndState = async (id, walletMessage, state) => {
-    console.log('Updating simulation with id - ', id);
     let storage = await chrome.storage.local.get(STORAGE_SIMUALTIONS_KEY);
 
     let newSimulations = storage[STORAGE_SIMUALTIONS_KEY];

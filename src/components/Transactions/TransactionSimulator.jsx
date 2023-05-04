@@ -27,6 +27,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCopy, faPlay } from '@fortawesome/free-solid-svg-icons';
 import MetamaskImage from '../../assets/img/metamask.png';
 import mixpanel from 'mixpanel-browser';
+import log from 'loglevel';
 
 const OpacityContainer = styled.div`
     position: fixed;
@@ -84,7 +85,7 @@ const HeadingRow = styled.div`
     color: white;
     background-color: #2d2d2d;
     border-bottom: 2px solid rgb(58, 58, 58);
-    width: 100%;
+    width: -webkit-fill-available;
     left: 0;
     position: absolute;
     top: 0;
@@ -474,7 +475,7 @@ const TransactionSimulator = ({
                 });
             if (!abi) return;
             if (failedDecode) {
-                console.log('failed to decode input');
+                log.debug('failed to decode input');
                 setInputDecodeFailed(true);
                 setDecodedInputData(
                     JSON.stringify(
@@ -619,7 +620,7 @@ const TransactionSimulator = ({
     };
 
     const continueToWallet = async () => {
-        console.log('inside continueToWallet');
+        log.debug('inside continueToWallet');
         let simulationDataJson = JSON.parse(simulatorData);
         mixpanel.track('FORWARD_SIMULATION_TO_WALLET', {
             simulatorData: simulationDataJson,
@@ -637,7 +638,7 @@ const TransactionSimulator = ({
         let newWalletMessage = { ...currentSimulation.walletMessage };
         newWalletMessage.params = [newParams];
 
-        console.log('this is new wallet - ', newWalletMessage);
+        log.debug('this is new wallet - ', newWalletMessage);
         await updateWalletMessageAndState(
             currentSimulation.id,
             newWalletMessage,

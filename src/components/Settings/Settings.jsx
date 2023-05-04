@@ -11,6 +11,7 @@ import './Settings.css';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectAllSettings, updateSetting } from '../../features/userSlice';
 import SETTINGS_CONFIG from '../../config/settings';
+import log from 'loglevel';
 
 const SettingsContainer = styled.div`
     padding-left: 1rem;
@@ -139,7 +140,7 @@ const Settings = () => {
     const settings = useSelector(selectAllSettings);
 
     const updateSettings = async (key, value) => {
-        console.log('Updating setting - ', key, value);
+        log.debug('Updating setting - ', key, value);
         dispatch(updateSetting(key, value));
     };
     return (

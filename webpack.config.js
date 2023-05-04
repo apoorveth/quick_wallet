@@ -270,7 +270,9 @@ var options = {
             chunks: ['panel'],
             cache: false,
         }),
-        new Dotenv(),
+        new Dotenv({
+            path: `./.env.${isDevelopment ? 'development' : 'production'}`,
+        }),
     ].filter(Boolean),
     infrastructureLogging: {
         level: 'info',

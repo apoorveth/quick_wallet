@@ -1,5 +1,6 @@
 /// Simulate request/reply manager for the content script and injected script.
 import { v4 as uuidv4 } from 'uuid';
+import log from 'loglevel';
 
 export const isSupportedChainId = (chainId) => {
     return (
@@ -84,7 +85,7 @@ export class RequestManager {
         this.mappings = new Map();
 
         document.addEventListener(DISPATCH_RESPONSE, (event) => {
-            console.log('HANDLING THE EVENT - ', event);
+            log.debug('HANDLING THE EVENT - ', event);
             this._handleResponse(JSON.parse(event.detail));
         });
     }
@@ -104,10 +105,7 @@ export class RequestManager {
      * Dispatch a request.
      */
     _dispatchRequest = (request) => {
-        console.log(
-            'Quick wallet Dispatching the following request - ',
-            request
-        );
+        log.debug('Quick wallet Dispatching the following request - ', request);
         document.dispatchEvent(
             new CustomEvent(DISPATCH_REQUEST, {
                 detail: request,
@@ -116,7 +114,7 @@ export class RequestManager {
     };
 
     _handleResponse = (response) => {
-        console.log('FINALLY GOING TO RESOLVE NOW - ', response);
+        log.debug('FINALLY GOING TO RESOLVE NOW - ', response);
         const resolver = this.mappings.get(response.id);
         if (!resolver) {
             // Could be a stale request or for another webpage.
@@ -170,7 +168,7 @@ export const Response = {
 const DISPATCH_RESPONSE = 'QUICK_WALLET_DISPATCH_RESPONSE';
 
 export const dispatchResponse = (response) => {
-    console.log('DISPATCHING THE RESPONSE - ', response);
+    log.debug('DISPATCHING THE RESPONSE - ', response);
     document.dispatchEvent(
         new CustomEvent(DISPATCH_RESPONSE, {
             detail: JSON.stringify(response),

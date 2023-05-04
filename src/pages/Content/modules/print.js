@@ -1,3 +1,5 @@
+import log from 'loglevel';
+
 export const printLine = (line) => {
-  console.log('===> FROM THE PRINT MODULE:', line);
+    log.debug('===> FROM THE PRINT MODULE:', line);
 };

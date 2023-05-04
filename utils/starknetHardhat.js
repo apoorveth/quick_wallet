@@ -1,4 +1,5 @@
 import * as starknet from 'starknet';
+import log from 'loglevel';
 
 const NAMED_TUPLE_DELIMITER = ': ';
 const ARGUMENTS_DELIMITER = ', ';
@@ -42,7 +43,7 @@ export function adaptInputUtil(functionName, input, inputSpecs, abi) {
         const inputSpec = inputSpecs[i];
         const currentValue = input[inputSpec.name];
 
-        console.log('adapting this value first - ', inputSpec.name);
+        log.debug('adapting this value first - ', inputSpec.name);
         if (COMMON_TYPES.includes(inputSpec.type)) {
             const errorMsg =
                 `${functionName}: Expected "${inputSpec.name}" to be a felt (Numeric); ` +
@@ -51,7 +52,7 @@ export function adaptInputUtil(functionName, input, inputSpecs, abi) {
                 adapted.push(toNumericString(currentValue));
             } else if (inputSpec.name.endsWith(LEN_SUFFIX)) {
                 //added this line to add length manually
-                console.log(
+                log.debug(
                     'adapting this value - ',
                     inputSpec.name,
                     currentValue
