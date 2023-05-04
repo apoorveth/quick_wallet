@@ -81,18 +81,16 @@ const App = () => {
                 storage[STORAGE_SIMUALTIONS_KEY][
                     storage[STORAGE_SIMUALTIONS_KEY].length - 1
                 ];
-
-            latestSimulation.walletMessage =
-                Array.isArray(latestSimulation.walletMessage[0]) ||
-                NETWORK_CONFIG[network].type === 'evm'
-                    ? latestSimulation.walletMessage
-                    : [latestSimulation.walletMessage];
-
             const simulationNetwork = Object.keys(NETWORK_CONFIG).filter(
                 (key) =>
                     NETWORK_CONFIG[key].chainId ==
                     Number(latestSimulation.chainId)
             )[0];
+            latestSimulation.walletMessage =
+                Array.isArray(latestSimulation.walletMessage[0]) ||
+                NETWORK_CONFIG[simulationNetwork].type === 'evm'
+                    ? latestSimulation.walletMessage
+                    : [latestSimulation.walletMessage];
 
             //used in background script to know when the popup closes
             chrome.runtime.connect({

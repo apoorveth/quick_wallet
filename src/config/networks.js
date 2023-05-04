@@ -42,7 +42,7 @@ const NETWORK_CONFIG = {
     },
     starknet_main: {
         name: 'Starknet',
-        chainId: '0x534e5f4d41494e', //SN_GOERLI
+        chainId: '0x534e5f4d41494e', //SN_MAINNET
         scanBaseUrl: 'starkscan.co',
         scanApiKey: '',
         image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1595348880',
