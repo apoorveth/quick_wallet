@@ -36,7 +36,7 @@ import {
     faCopy,
     faPlay,
 } from '@fortawesome/free-solid-svg-icons';
-import MetamaskImage from '../../assets/img/metamask.png';
+import WalletLogo from '../../assets/img/argentx-logo.png';
 import mixpanel from 'mixpanel-browser';
 import _ from 'lodash';
 import * as starknet from 'starknet';
@@ -177,7 +177,8 @@ const ForwardToWalletButton = styled.div`
 `;
 
 const ForwardButtonImage = styled.img`
-    width: 30px;
+    width: 22px;
+    margin-right: 5px;
 `;
 
 const TransactionDetailsContainer = styled.div`
@@ -736,7 +737,7 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
                         </SimulateButton>
                         {interceptedTransaction && (
                             <ForwardToWalletButton onClick={continueToWallet}>
-                                <ForwardButtonImage src={MetamaskImage} />
+                                <ForwardButtonImage src={WalletLogo} />
                                 <FontAwesomeIcon icon={faPlay} />
                             </ForwardToWalletButton>
                         )}

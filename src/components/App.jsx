@@ -28,6 +28,8 @@ import { POPUP_CONNECT_PREFIX } from '../lib/constants';
 import { NAVBAR_PAGES, selectPage } from '../features/navbarSlice';
 import TransactionSimulatorStarknet from './Transactions/TransactionSimulatorStarknet';
 import log from 'loglevel';
+import { ErrorBoundary } from 'react-error-boundary';
+import SimulationFallback from './Transactions/SimulationFallback';
 
 const AppContainer = styled.div`
     top: 0px;
@@ -146,7 +148,9 @@ const App = () => {
         <AppContainer>
             <TopBar />
             {!currentSimulation && currentPage}
-            {currentSimulation && simulatorJSX}
+            <ErrorBoundary fallback={<SimulationFallback></SimulationFallback>}>
+                {currentSimulation && simulatorJSX}
+            </ErrorBoundary>
             <Navbar />
         </AppContainer>
     );
