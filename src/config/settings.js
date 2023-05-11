@@ -23,7 +23,7 @@ const SETTINGS_CONFIG = {
         title: 'EVM Settings',
     },
     tenderlyApiKey: {
-        labelTitle: 'Tenderly API Key',
+        labelTitle: 'Tenderly API Key (optional)',
         labelDescription:
             'Read "Get an API Key" over <a class="settingsLink" href="https://docs.tenderly.co/simulations-and-forks/reference/configuration-of-api-access" target="_blank">here</a> to create an API Key',
         type: 'input',
@@ -31,7 +31,7 @@ const SETTINGS_CONFIG = {
         inputType: 'password',
     },
     tenderlyUsername: {
-        labelTitle: 'Tenderly Username',
+        labelTitle: 'Tenderly Username (optional)',
         labelDescription:
             'Get your tenderly username from <a class="settingsLink" href="https://dashboard.tenderly.co/account" target="_blank">here</a>',
         type: 'input',
@@ -39,7 +39,7 @@ const SETTINGS_CONFIG = {
         inputType: 'text',
     },
     tenderlyProjectName: {
-        labelTitle: 'Tenderly Project Name',
+        labelTitle: 'Tenderly Project Name (optional)',
         labelDescription:
             'Get your tenderly project name from <a class="settingsLink" href="https://dashboard.tenderly.co/projects" target="_blank">here</a>',
         type: 'input',

@@ -136,40 +136,19 @@ const addQuickWalletProxyEVM = (provider) => {
     }
 };
 
-const addQuickWalletProxyStarknet = (provider) => {
+const addQuickWalletProxyArgentX = (provider) => {
     if (!provider || provider.isQuickWallet) {
         return;
     }
 
     const executeHandler = {
-        apply: async (target, thisArg, args) => {
-            log.debug(
-                'Quick wallet inside execute handler',
+        apply: (target, thisArg, args) =>
+            starknetExecuteHandle(
                 target,
                 thisArg,
-                args
-            );
-
-            log.debug('starting the debugger!!');
-            const response = await REQUEST_MANAGER.request({
-                chainId: thisArg.chainId,
-                walletMessage: args,
-                state: SimulationState.Intercepted,
-                appUrl: window.location.href,
-                id: uuidv4(),
-                accountAddress: provider.account.address,
-            });
-
-            if (response.type == Response.Continue) {
-                let params = args;
-                if (response.walletMessage) {
-                    params = response.walletMessage;
-                }
-                return Reflect.apply(target, thisArg, params);
-            }
-
-            throw new Error('User aborted');
-        },
+                args,
+                provider.account.address
+            ),
     };
 
     const requestHandler = {
@@ -201,6 +180,64 @@ const addQuickWalletProxyStarknet = (provider) => {
     }
 };
 
+const addQuickWalletProxyBraavos = (provider) => {
+    if (!provider || provider.isQuickWallet) {
+        return;
+    }
+
+    log.debug('adding proxy to braavos', provider);
+
+    const executeHandler = {
+        apply: (target, thisArg, args) =>
+            starknetExecuteHandle(
+                target,
+                thisArg,
+                args,
+                provider.account.address
+            ),
+    };
+
+    try {
+        Object.defineProperty(provider.account, 'execute', {
+            value: new Proxy(provider.account.execute, executeHandler),
+        });
+
+        provider.isQuickWallet = true;
+        log.debug('Quick Wallet is running braavos!');
+    } catch (error) {
+        // If we can't add ourselves to this provider, don't mess with other providers.
+        console.error('Failed to add proxy - ', error);
+    }
+};
+
+const starknetExecuteHandle = async (target, thisArg, args, address) => {
+    log.debug(
+        'Quick wallet inside execute handler braavos',
+        target,
+        thisArg,
+        args
+    );
+
+    const response = await REQUEST_MANAGER.request({
+        chainId: thisArg.chainId,
+        walletMessage: args,
+        state: SimulationState.Intercepted,
+        appUrl: window.location.href,
+        id: uuidv4(),
+        accountAddress: address,
+    });
+
+    if (response.type == Response.Continue) {
+        let params = args;
+        if (response.walletMessage) {
+            params = response.walletMessage;
+        }
+        return Reflect.apply(target, thisArg, params);
+    }
+
+    throw new Error('User aborted');
+};
+
 if (window.ethereum) {
     log.debug('QuickWallet: window.ethereum detected, adding proxy.');
 
@@ -220,15 +257,28 @@ if (window.ethereum) {
     });
 }
 
-const handleStarknetProxy = (attempt) => {
+const handleStarknetArgentX = (attempt) => {
     if (window?.starknet_argentX?.account) {
-        addQuickWalletProxyStarknet(window.starknet_argentX, 'starknet');
+        addQuickWalletProxyArgentX(window.starknet_argentX, 'starknet');
     } else {
-        if (attempt === 1000) {
+        if (attempt === 10000) {
             return;
         }
-        setTimeout(() => handleStarknetProxy(attempt + 1), 100);
+        setTimeout(() => handleStarknetArgentX(attempt + 1), 100);
     }
 };
 
-handleStarknetProxy(1);
+handleStarknetArgentX(1);
+
+const handleStarknetBraavos = (attempt) => {
+    if (window?.starknet_braavos?.account?.address) {
+        addQuickWalletProxyBraavos(window.starknet_braavos);
+    } else {
+        if (attempt === 10000) {
+            return;
+        }
+        setTimeout(() => handleStarknetBraavos(attempt + 1), 100);
+    }
+};
+
+handleStarknetBraavos(1);

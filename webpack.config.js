@@ -192,7 +192,7 @@ var options = {
         new CopyWebpackPlugin({
             patterns: [
                 {
-                    from: 'src/assets/img/icon_lightning.png',
+                    from: 'src/assets/img/charged_logo.png',
                     to: path.join(__dirname, 'build'),
                     force: true,
                 },

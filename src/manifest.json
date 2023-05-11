@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "Charged: Supercharge your web3 productivity",
+  "name": "Charged: Add breakpoints to transactions",
   "description": "A web3 transaction debugger to increase development speed",
   "background": { "service_worker": "background.bundle.js" },
   "action": {
     "default_popup": "popup.html",
-    "default_icon": "icon_lightning.png"
+    "default_icon": "charged_logo.png"
   },
   "icons": {
-    "128": "icon_lightning.png"
+    "128": "charged_logo.png"
   },
   "content_scripts": [
     {
@@ -19,7 +19,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["content.styles.css", "icon_lightning.png","injectedScript.bundle.js"],
+      "resources": ["content.styles.css", "charged_logo.png","injectedScript.bundle.js"],
       "matches": ["<all_urls>"]
     }
   ],
