@@ -271,7 +271,9 @@ var options = {
             cache: false,
         }),
         new Dotenv({
-            path: `./.env.${isDevelopment ? 'development' : 'production'}`,
+            path: `./.env.${
+                isDevelopment ? 'development' : 'production'
+            }.local`,
         }),
     ].filter(Boolean),
     infrastructureLogging: {
