@@ -508,6 +508,7 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
             if (_.isEmpty(transaction)) return;
 
             setIsDecodingInput(true);
+
             const { abi, decodedInput, functionData, failedDecode } =
                 await getInputDataWithoutAbi({
                     to:
@@ -533,6 +534,8 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
             }
             setInputDecodeFailed(false);
             setContractAbi(abi);
+
+            log.debug('this is the decoded input - ', decodedInput);
             setDecodedInputData(JSON.stringify(decodedInput, null, 4));
             setContractFunctionName(functionData.name);
         })();
