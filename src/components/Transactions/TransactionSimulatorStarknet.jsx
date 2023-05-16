@@ -416,8 +416,8 @@ const filterSimulatorKeys = (obj) => {
             );
             value = value.map((item) =>
                 !String(item).startsWith('0x')
-                    ? item
-                    : starknet.number.toBN(item).toString()
+                    ? item.toString()
+                    : starknet.num.getDecimalString(item)
             );
             data[key] = value;
         });
@@ -604,11 +604,11 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
                         'Failed to simulate transaction. There seem to be an issue with our code, we will fix it ASAP!',
                     simulation: {
                         formattedEvents: [],
-                    },
-                    raw: {
-                        success: false,
-                        message:
-                            'Failed to simulate transaction. There seem to be an issue with our code, we will fix it ASAP!',
+                        raw: {
+                            success: false,
+                            message:
+                                'Failed to simulate transaction. There seem to be an issue with our code, we will fix it ASAP!',
+                        },
                     },
                 },
             };
@@ -786,7 +786,7 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
                             })}
                     </TransactionDetailsContainer>
                     <Subheading style={{ marginTop: '3vh' }}>
-                        Basic Simulation
+                        Basic Simulation (asset changes)
                     </Subheading>
                     {simulationStatus && (
                         <TransactionDetailsContainer

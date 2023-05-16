@@ -133,8 +133,10 @@ const isImplementation = async ({ abi, address, provider }) => {
     const contract = new Contract(abi, address, provider);
     const response = await contract.call(implementationFunction[0].name);
 
+    const addressKeyOutput = implementationFunction[0].outputs[0].name;
+
     const implementationAbi = await getAbi({
-        address: starknetjs.number.toHex(response[0]),
+        address: starknetjs.number.toHex(response[addressKeyOutput]),
         provider,
     });
     return {
@@ -161,8 +163,10 @@ const isClassImplementation = async ({ abi, address, provider }) => {
     const contract = new Contract(abi, address, provider);
     const implementation = await contract.call(implementationFunction[0].name);
 
+    const addressKeyOutput = implementationFunction[0].outputs[0].name;
+
     const result = await provider.getClassByHash(
-        starknetjs.number.toHex(implementation[0])
+        starknetjs.number.toHex(implementation[addressKeyOutput])
     );
     return {
         isImplementation: true,

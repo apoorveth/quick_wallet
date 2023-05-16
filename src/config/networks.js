@@ -38,7 +38,7 @@ const NETWORK_CONFIG = {
         scanApiKey: '',
         image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1595348880',
         type: 'cvm',
-        sequencerNetwork: 'goerli-alpha',
+        sequencerNetwork: 'SN_GOERLI',
     },
     starknet_main: {
         name: 'Starknet',
@@ -47,7 +47,7 @@ const NETWORK_CONFIG = {
         scanApiKey: '',
         image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1595348880',
         type: 'cvm',
-        sequencerNetwork: 'mainnet-alpha',
+        sequencerNetwork: 'SN_MAIN',
     },
 };
 

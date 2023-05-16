@@ -237,7 +237,9 @@ function adaptComplexInput(input, inputSpec, abi, adaptedArray) {
 
 function adaptStructInput(input, inputSpec, abi, adaptedArray) {
     if (inputSpec.type === 'Uint256') {
-        input = starknet.uint256.bnToUint256(new starknet.number.toBN(input));
+        input = starknet.uint256.bnToUint256(
+            starknet.num.getDecimalString(input)
+        );
     }
     const type = inputSpec.type;
     if (!(type in abi)) {
