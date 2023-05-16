@@ -7,6 +7,7 @@ import {
 import { ethErrors } from 'eth-rpc-errors';
 import { v4 as uuidv4 } from 'uuid';
 import log from 'loglevel';
+import _ from 'lodash';
 
 const REQUEST_MANAGER = new RequestManager();
 
@@ -136,40 +137,39 @@ const addQuickWalletProxyEVM = (provider) => {
     }
 };
 
-const addQuickWalletProxyArgentX = (provider) => {
+let argentXProvider;
+let braavosProvider;
+
+const STARKNET_WALLETS = {
+    argentX: 'argnetX',
+    braavos: 'braavos',
+};
+
+const addQuickWalletProxyStarknet = (provider, wallet) => {
     if (!provider || provider.isQuickWallet) {
         return;
     }
 
     const executeHandler = {
         apply: (target, thisArg, args) =>
-            starknetExecuteHandle(
-                target,
-                thisArg,
-                args,
-                provider.account.address
-            ),
+            starknetExecuteHandle(target, thisArg, args, wallet),
     };
 
-    const requestHandler = {
-        apply: async (target, thisArg, args) => {
-            log.debug(
-                'Quick wallet inside request handler',
-                target,
-                thisArg,
-                args
-            );
+    log.debug(`Adding proxy to ${wallet} - `, provider);
 
-            return Reflect.apply(target, thisArg, args);
-        },
-    };
-
+    switch (wallet) {
+        case STARKNET_WALLETS.argentX:
+            argentXProvider = provider;
+            break;
+        case STARKNET_WALLETS.braavos:
+            braavosProvider = provider;
+            break;
+        default:
+            break;
+    }
     try {
-        Object.defineProperty(provider.account, 'execute', {
-            value: new Proxy(provider.account.execute, executeHandler),
-        });
-        Object.defineProperty(provider, 'request', {
-            value: new Proxy(provider.request, requestHandler),
+        Object.defineProperty(provider, 'execute', {
+            value: new Proxy(provider.execute, executeHandler),
         });
 
         provider.isQuickWallet = true;
@@ -180,51 +180,33 @@ const addQuickWalletProxyArgentX = (provider) => {
     }
 };
 
-const addQuickWalletProxyBraavos = (provider) => {
-    if (!provider || provider.isQuickWallet) {
-        return;
+const starknetExecuteHandle = async (target, thisArg, args, wallet) => {
+    let provider;
+    switch (wallet) {
+        case STARKNET_WALLETS.argentX:
+            provider = argentXProvider;
+            break;
+        case STARKNET_WALLETS.braavos:
+            provider = braavosProvider;
+            break;
+        default:
+            break;
     }
-
-    log.debug('adding proxy to braavos', provider);
-
-    const executeHandler = {
-        apply: (target, thisArg, args) =>
-            starknetExecuteHandle(
-                target,
-                thisArg,
-                args,
-                provider.account.address
-            ),
-    };
-
-    try {
-        Object.defineProperty(provider.account, 'execute', {
-            value: new Proxy(provider.account.execute, executeHandler),
-        });
-
-        provider.isQuickWallet = true;
-        log.debug('Quick Wallet is running braavos!');
-    } catch (error) {
-        // If we can't add ourselves to this provider, don't mess with other providers.
-        console.error('Failed to add proxy - ', error);
-    }
-};
-
-const starknetExecuteHandle = async (target, thisArg, args, address) => {
     log.debug(
         'Quick wallet inside execute handler braavos',
         target,
         thisArg,
-        args
+        args,
+        provider.address
     );
 
     const response = await REQUEST_MANAGER.request({
-        chainId: thisArg.chainId,
+        chainId: provider.chainId,
         walletMessage: args,
         state: SimulationState.Intercepted,
         appUrl: window.location.href,
         id: uuidv4(),
-        accountAddress: address,
+        accountAddress: provider.address,
     });
 
     if (response.type == Response.Continue) {
@@ -257,28 +239,112 @@ if (window.ethereum) {
     });
 }
 
-const handleStarknetArgentX = (attempt) => {
-    if (window?.starknet_argentX?.account) {
-        addQuickWalletProxyArgentX(window.starknet_argentX, 'starknet');
+const getObjectFromPath = (objectPath, pathPosition) => {
+    const pathSplit = objectPath.split('.');
+    let currentObj = window;
+    let previousObj = undefined;
+    for (let i = 1; i < pathPosition + 1; i++) {
+        // starting from 1 to skip window
+        previousObj = currentObj;
+        currentObj = currentObj[pathSplit[i]];
+    }
+    return { currentObj, objName: pathSplit[pathPosition], previousObj };
+};
+
+const callProxyCallback = (
+    objectPath,
+    pathPosition,
+    proxyCallback,
+    previousObj
+) => {
+    const pathSplit = objectPath.split('.');
+    if (pathPosition === pathSplit.length - 1) {
+        // we are on the last one so we cann call proxyCallback
+        log.debug(
+            'Calling the callback - ',
+            objectPath,
+            proxyCallback,
+            previousObj
+        );
+        proxyCallback(previousObj);
     } else {
-        if (attempt === 10000) {
-            return;
-        }
-        setTimeout(() => handleStarknetArgentX(attempt + 1), 100);
+        // we are not on the last position, so go deeper in the object
+        log.debug('Handling proxy again - ', objectPath, pathPosition + 1);
+        handleProxy(objectPath, pathPosition + 1, proxyCallback);
     }
 };
 
-handleStarknetArgentX(1);
+const handleProxy = (objectPath, pathPosition, proxyCallback) => {
+    let { currentObj, objName, previousObj } = getObjectFromPath(
+        objectPath,
+        pathPosition
+    );
 
-const handleStarknetBraavos = (attempt) => {
-    if (window?.starknet_braavos?.account?.address) {
-        addQuickWalletProxyBraavos(window.starknet_braavos);
-    } else {
-        if (attempt === 10000) {
-            return;
-        }
-        setTimeout(() => handleStarknetBraavos(attempt + 1), 100);
+    // get the object till the current position, if it's not undefined check if we need to call the callback
+    // for example, window.starknet_argentX.account.execute and position 1 gets you window.starknet_argentX
+    if (currentObj) {
+        log.debug(
+            `QuickWallet: ${objName} detected, adding proxy.`,
+            currentObj,
+            previousObj
+        );
+        callProxyCallback(objectPath, pathPosition, proxyCallback, previousObj);
     }
+
+    const descriptor = Object.getOwnPropertyDescriptor(previousObj, objName);
+    if (descriptor && !descriptor.configurable) {
+        // we won't be able to set the getter and setter
+        // this means in case this object is reset we won't be able to listen to it
+        // and the proxy will get removed
+        return;
+    }
+
+    if (objectPath.split('.').length - 1 === pathPosition) {
+        // don't add getter and setter proxy at the last element
+        // when I was trying to add it was still working though
+        // but ideally it shouldn't be there
+        return;
+    }
+
+    log.debug(
+        `QuickWallet: ${objName} defining setter and getter.`,
+        previousObj,
+        objName
+    );
+    let cached = currentObj;
+
+    // add setters and getters for this position
+    // in this position is reset in the future we need to handle adding proxies
+    // to objects inside this object again
+    Object.defineProperty(previousObj, objName, {
+        get: () => {
+            return cached;
+        },
+        set: (value) => {
+            cached = value;
+            log.debug(
+                'the set function has been called!! - ' + objName,
+                value,
+                previousObj
+            );
+            if (!value) {
+                // can't add proxy to items inside an undefined value
+                return;
+            }
+            callProxyCallback(
+                objectPath,
+                pathPosition,
+                proxyCallback,
+                previousObj
+            );
+        },
+    });
 };
 
-handleStarknetBraavos(1);
+handleProxy('window.starknet_argentX.account.execute', 1, (provider) =>
+    addQuickWalletProxyStarknet(provider, STARKNET_WALLETS.argentX)
+);
+
+handleProxy('window.starknet_braavos.account.execute', 1, (provider) =>
+    addQuickWalletProxyStarknet(provider, STARKNET_WALLETS.braavos)
+);

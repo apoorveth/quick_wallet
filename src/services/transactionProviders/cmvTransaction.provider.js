@@ -49,13 +49,12 @@ export const getOutputDataFromInput = ({ functionName, inputStr, abi }) => {
     try {
         const input = JSON.parse(inputStr);
         const newInput = { ...input };
-
-        // the code automatically adds the _len key and we don't need to add it ourselves
-        // Object.keys(newInput).forEach((key) => {
-        //     if (key.endsWith(starknetHardhat.LEN_SUFFIX)) {
-        //         delete newInput[key];
-        //     }
-        // });
+        Object.entries(newInput).forEach(([key, value]) => {
+            if (/^\d+$/.test(value)) {
+                // if it's a number, convert to BigInt
+                newInput[key] = BigInt(value);
+            }
+        });
         let abiFormatted = formatAbi(abi);
 
         return starknetHardhat.adaptInputUtil(
@@ -133,8 +132,10 @@ const isImplementation = async ({ abi, address, provider }) => {
     const contract = new Contract(abi, address, provider);
     const response = await contract.call(implementationFunction[0].name);
 
+    const addressKeyOutput = implementationFunction[0].outputs[0].name;
+
     const implementationAbi = await getAbi({
-        address: starknetjs.number.toHex(response[0]),
+        address: starknetjs.number.toHex(response[addressKeyOutput]),
         provider,
     });
     return {
@@ -161,8 +162,10 @@ const isClassImplementation = async ({ abi, address, provider }) => {
     const contract = new Contract(abi, address, provider);
     const implementation = await contract.call(implementationFunction[0].name);
 
+    const addressKeyOutput = implementationFunction[0].outputs[0].name;
+
     const result = await provider.getClassByHash(
-        starknetjs.number.toHex(implementation[0])
+        starknetjs.number.toHex(implementation[addressKeyOutput])
     );
     return {
         isImplementation: true,
