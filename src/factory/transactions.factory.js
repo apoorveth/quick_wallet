@@ -6,5 +6,7 @@ export const getTransactionProvider = (network) => {
             return require('../services/transactionProviders/evmTransaction.provider');
         case 'cvm':
             return require('../services/transactionProviders/cmvTransaction.provider');
+        case 'solana':
+            return require('../services/transactionProviders/solanaTransaction.provider');
     }
 };

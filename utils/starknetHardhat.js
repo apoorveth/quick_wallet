@@ -1,5 +1,6 @@
 import * as starknet from 'starknet';
 import log from 'loglevel';
+import { stringifyBigInt } from './objects';
 
 const NAMED_TUPLE_DELIMITER = ': ';
 const ARGUMENTS_DELIMITER = ', ';
@@ -583,13 +584,7 @@ function generateComplexOutput(raw, rawIndex, type, abi) {
 // added custom functions to parse the response
 
 function serialize(object) {
-    return JSON.parse(
-        JSON.stringify(
-            object,
-            (key, value) =>
-                typeof value === 'bigint' ? value.toString() : value // return everything else unchanged
-        )
-    );
+    return JSON.parse(stringifyBigInt(object));
 }
 
 function parseObject(obj) {

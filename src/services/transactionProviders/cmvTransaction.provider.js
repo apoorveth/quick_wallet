@@ -3,13 +3,48 @@ import { Provider, Contract } from 'starknet';
 import NETWORK_CONFIG from '../../config/networks';
 import * as starknetHardhat from '../../../utils/starknetHardhat';
 import log from 'loglevel';
+import mixpanel from 'mixpanel-browser';
+import axios from 'axios';
 
-export const getInputDataWithoutAbi = async ({
-    to,
-    data,
-    network,
-    functionName,
-}) => {
+const SIMULATION_KEYS = {
+    contractAddress: { convertToNumber: false },
+    entrypoint: { convertToNumber: false },
+    calldata: { convertToNumber: true },
+};
+
+export const filterSimulatorKeys = (obj) => {
+    log.debug('inside filter simulate keys - ', obj);
+    let data = {};
+    Object.entries(obj)
+        .filter(([key, value]) => Object.keys(SIMULATION_KEYS).includes(key))
+        .forEach(([key, value]) => {
+            if (!SIMULATION_KEYS[key].convertToNumber) {
+                data[key] = value;
+                return;
+            }
+            if (!Array.isArray(value)) {
+                data[key] = Number(value);
+                return;
+            }
+
+            log.debug(
+                'going to filter with convert to number as true!! - ',
+                value
+            );
+            value = value.map((item) =>
+                !String(item).startsWith('0x')
+                    ? item.toString()
+                    : starknetjs.num.getDecimalString(item)
+            );
+            data[key] = value;
+        });
+    return JSON.stringify(data, null, 4);
+};
+
+export const getInputDataWithoutAbi = async ({ transaction, network }) => {
+    const to = transaction.contractAddress;
+    const data = transaction.calldata;
+    const functionName = transaction.entrypoint;
     const provider = new Provider({
         sequencer: { network: NETWORK_CONFIG[network].sequencerNetwork },
     });
@@ -67,6 +102,27 @@ export const getOutputDataFromInput = ({ functionName, inputStr, abi }) => {
         console.error('failed to change input - ', err);
         return ['<invalid_input>'];
     }
+};
+
+export const simulate = async ({ network, interceptedTransaction }) => {
+    mixpanel.track('STARKNET_FAILED_SIMULATION', {
+        chainId: NETWORK_CONFIG[network].chainId,
+        from: interceptedTransaction.accountAddress,
+        calldata: starknetjs.transaction.fromCallsToExecuteCalldata(
+            interceptedTransaction.walletMessage[0]
+        ),
+    });
+    return await axios.post(
+        `${process.env.REACT_APP_BACKEND_BASE_URL}/v1/simulator/simulate`,
+        {
+            chainId: NETWORK_CONFIG[network].chainId,
+            from: interceptedTransaction.accountAddress,
+            calldata: starknetjs.transaction.fromCallsToExecuteCalldata(
+                interceptedTransaction.walletMessage[0]
+            ),
+            simulatorType: 'STARKNET_FULL',
+        }
+    );
 };
 
 const resolveAbiPromises = async (promises) => {

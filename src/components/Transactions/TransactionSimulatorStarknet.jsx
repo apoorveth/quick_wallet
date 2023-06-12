@@ -9,9 +9,11 @@ import cross from '../../assets/img/cross.png';
 import axios from 'axios';
 import { ethers } from 'ethers';
 import {
+    filterSimulatorKeys,
     getInputDataWithoutAbi,
     getOutputDataFromInput,
 } from '../../services/transactions';
+import * as transactions from '../../services/transactions';
 import { getTransaction } from '../../services/scan';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -36,7 +38,8 @@ import {
     faCopy,
     faPlay,
 } from '@fortawesome/free-solid-svg-icons';
-import WalletLogo from '../../assets/img/argentx-logo.png';
+import ArgentXLogo from '../../assets/img/argentx-logo.png';
+import PhantomLogo from '../../assets/img/phantom_wallet.png';
 import mixpanel from 'mixpanel-browser';
 import _ from 'lodash';
 import * as starknet from 'starknet';
@@ -390,40 +393,6 @@ const EditorStyles = {
     width: '100%',
 };
 
-const simulationKeys = {
-    contractAddress: { convertToNumber: false },
-    entrypoint: { convertToNumber: false },
-    calldata: { convertToNumber: true },
-};
-
-const filterSimulatorKeys = (obj) => {
-    let data = {};
-    Object.entries(obj)
-        .filter(([key, value]) => Object.keys(simulationKeys).includes(key))
-        .forEach(([key, value]) => {
-            if (!simulationKeys[key].convertToNumber) {
-                data[key] = value;
-                return;
-            }
-            if (!Array.isArray(value)) {
-                data[key] = Number(value);
-                return;
-            }
-
-            log.debug(
-                'going to filter with convert to number as true!! - ',
-                value
-            );
-            value = value.map((item) =>
-                !String(item).startsWith('0x')
-                    ? item.toString()
-                    : starknet.num.getDecimalString(item)
-            );
-            data[key] = value;
-        });
-    return JSON.stringify(data, null, 4);
-};
-
 const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
     const interceptedTransaction = useSelector(selectCurrentSimulation);
     const transactionIndex = useSelector(
@@ -435,16 +404,14 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
     const [contractAbi, setContractAbi] = useState([]);
     const [simulationResults, setSimulationResults] = useState('{}');
     const [inputDecodeFailed, setInputDecodeFailed] = useState(false);
-    const [manualImplementationAddress, setManualImplementationAddress] =
-        useState(false);
     const [transaction, setTransaction] = useState(
         interceptedTransaction.walletMessage[0][transactionIndex]
     );
     log.debug('this is the txn - ', interceptedTransaction);
-    const [simulatorData, setSimulatorData] = useState(
-        filterSimulatorKeys(transaction)
-    );
     const network = useSelector(selectNetwork);
+    const [simulatorData, setSimulatorData] = useState(
+        filterSimulatorKeys({ transaction, network })
+    );
     const [assetChanges, setAssetChanges] = useState();
     const [simulationStatus, setSimulationStatus] = useState(false);
     const [isDecodingInput, setIsDecodingInput] = useState(false);
@@ -485,7 +452,7 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
         mixpanel.track('STARKNET_NEW_INTERCEPTED_SIMULATION', {
             transaction: transaction,
         });
-        updateSimulatorData(filterSimulatorKeys(transaction));
+        updateSimulatorData(filterSimulatorKeys({ transaction, network }));
     }, []);
 
     useEffect(() => {
@@ -498,7 +465,9 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
         const newTransaction =
             interceptedTransaction.walletMessage[0][transactionIndex];
         setTransaction(newTransaction);
-        setSimulatorData(filterSimulatorKeys(newTransaction));
+        setSimulatorData(
+            filterSimulatorKeys({ transaction: newTransaction, network })
+        );
         setDecodedInputData('{}');
         setContractFunctionName(false);
     }, [transactionIndex]);
@@ -511,12 +480,9 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
 
             const { abi, decodedInput, functionData, failedDecode } =
                 await getInputDataWithoutAbi({
-                    to:
-                        manualImplementationAddress ||
-                        transaction.contractAddress,
-                    data: transaction.calldata,
                     network,
-                    functionName: transaction.entrypoint,
+                    transaction: transaction,
+                    transactionIndex,
                 });
             setIsDecodingInput(false);
             if (!abi) return;
@@ -539,12 +505,17 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
             setDecodedInputData(JSON.stringify(decodedInput, null, 4));
             setContractFunctionName(functionData.name);
         })();
-    }, [manualImplementationAddress, transaction]);
+    }, [transaction]);
 
     //get asset changes on load
     useEffect(() => {
+        log.debug(
+            'going to get first tiem - ',
+            simulatorData,
+            firstTimeSimulation
+        );
         if (firstTimeSimulation) return;
-        if (!JSON.parse(simulatorData).calldata) return;
+        if (_.isEmpty(JSON.parse(simulatorData))) return;
         simulate();
         setFirstTimeSimulation(true);
     }, [simulatorData]);
@@ -581,25 +552,12 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
 
         let response;
         try {
-            response = await axios.post(
-                `${process.env.REACT_APP_BACKEND_BASE_URL}/v1/simulator/simulate`,
-                {
-                    chainId: NETWORK_CONFIG[network].chainId,
-                    from: interceptedTransaction.accountAddress,
-                    calldata: starknet.transaction.fromCallsToExecuteCalldata(
-                        interceptedTransaction.walletMessage[0]
-                    ),
-                    simulatorType: 'STARKNET_FULL',
-                }
-            );
-        } catch (err) {
-            mixpanel.track('STARKNET_FAILED_SIMULATION', {
-                chainId: NETWORK_CONFIG[network].chainId,
-                from: interceptedTransaction.accountAddress,
-                calldata: starknet.transaction.fromCallsToExecuteCalldata(
-                    interceptedTransaction.walletMessage[0]
-                ),
+            response = await transactions.simulateTransaction({
+                network,
+                interceptedTransaction,
             });
+        } catch (err) {
+            log.error(err);
             response = {
                 data: {
                     success: false,
@@ -664,15 +622,6 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
         let simulationDataJson = JSON.parse(simulatorData);
         mixpanel.track('STARKNET_FORWARD_SIMULATION_TO_WALLET', {
             simulatorData: simulationDataJson,
-        });
-        let newParams = {};
-
-        Object.entries(simulationDataJson).map(([key, value]) => {
-            if (simulationKeys[key].convertToNumber) {
-                newParams[key] = `0x${Number(value).toString(16)}`;
-            } else {
-                newParams[key] = value;
-            }
         });
 
         await updateWalletMessageAndState(
@@ -740,7 +689,13 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
                         </SimulateButton>
                         {interceptedTransaction && (
                             <ForwardToWalletButton onClick={continueToWallet}>
-                                <ForwardButtonImage src={WalletLogo} />
+                                <ForwardButtonImage
+                                    src={
+                                        network.includes('solana')
+                                            ? PhantomLogo
+                                            : ArgentXLogo
+                                    }
+                                />
                                 <FontAwesomeIcon icon={faPlay} />
                             </ForwardToWalletButton>
                         )}
@@ -860,36 +815,6 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
                             inputDecodeFailed={inputDecodeFailed}
                         />
                     </EditorContainer>
-                    {/* {inputDecodeFailed && (
-                        <DecodeErrorContainer>
-                            <DecodeErrorMessage>
-                                Is the{' '}
-                                <DecodeErrorMessageHyperlink
-                                    href={`https://${NETWORK_CONFIG[
-                                        network
-                                    ].scanBaseUrl.replace(
-                                        'api.',
-                                        ''
-                                    )}/contract/${transaction.contractAddress}`}
-                                    target="_blank"
-                                >
-                                    to
-                                </DecodeErrorMessageHyperlink>{' '}
-                                address a proxy contract? Decode the input by
-                                specifying the actual address.
-                            </DecodeErrorMessage>
-                            <ImplementationContractInputContainer>
-                                <ImplementationContractInput
-                                    onChange={(e) =>
-                                        setManualImplementationAddress(
-                                            e.target.value
-                                        )
-                                    }
-                                    placeholder="Enter proxy address"
-                                ></ImplementationContractInput>
-                            </ImplementationContractInputContainer>
-                        </DecodeErrorContainer>
-                    )} */}
 
                     <Subheading style={{ marginTop: '3vh' }}>
                         Transaction Details

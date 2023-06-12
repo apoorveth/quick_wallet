@@ -153,6 +153,13 @@ var options = {
         extensions: fileExtensions
             .map((extension) => '.' + extension)
             .concat(['.js', '.jsx', '.ts', '.tsx', '.css']),
+        fallback: {
+            assert: require.resolve('assert'),
+            path: require.resolve('path-browserify'),
+            fs: false,
+            os: require.resolve('os-browserify/browser'),
+            buffer: require.resolve('buffer'),
+        },
     },
     plugins: [
         isDevelopment && new ReactRefreshWebpackPlugin(),
@@ -274,6 +281,9 @@ var options = {
             path: `./.env.${
                 isDevelopment ? 'development' : 'production'
             }.local`,
+        }),
+        new webpack.ProvidePlugin({
+            Buffer: ['buffer', 'Buffer'],
         }),
     ].filter(Boolean),
     infrastructureLogging: {
