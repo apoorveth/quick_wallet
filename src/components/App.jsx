@@ -84,7 +84,8 @@ const App = () => {
             const simulationNetwork = Object.keys(NETWORK_CONFIG).filter(
                 (key) =>
                     NETWORK_CONFIG[key].chainId ==
-                    Number(latestSimulation.chainId)
+                        Number(latestSimulation.chainId) ||
+                    NETWORK_CONFIG[key].chainId == latestSimulation.chainId
             )[0];
             latestSimulation.walletMessage =
                 Array.isArray(latestSimulation.walletMessage[0]) ||
@@ -125,6 +126,7 @@ const App = () => {
     let simulatorJSX;
 
     switch (NETWORK_CONFIG[network].type) {
+        case 'solana':
         case 'cvm':
             simulatorJSX = (
                 <TransactionSimulatorStarknet

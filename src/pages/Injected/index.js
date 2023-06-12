@@ -8,6 +8,8 @@ import { ethErrors } from 'eth-rpc-errors';
 import { v4 as uuidv4 } from 'uuid';
 import log from 'loglevel';
 import _ from 'lodash';
+import { stringifyBigInt } from '../../../utils/objects';
+import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
 
 const REQUEST_MANAGER = new RequestManager();
 
@@ -220,6 +222,73 @@ const starknetExecuteHandle = async (target, thisArg, args, wallet) => {
     throw new Error('User aborted');
 };
 
+const addQuickWalletProxySolana = (provider) => {
+    const signAndSendTransactionHandler = {
+        apply: async (target, thisArg, args) => {
+            log.debug('Intercepted solana txn - ', target, thisArg, args);
+
+            // const transactions = Array.isArray(args[0]) ? args[0] : args;
+            // transactions.forEach((transaction) => {
+            //     if (!transaction.message) {
+            //         return;
+            //     }
+            //     transaction.message.accountKeys =
+            //         transaction.message.accountKeys.map((i) => i.toBase58());
+            // });
+
+            let modifiedArgs = JSON.parse(stringifyBigInt(args));
+
+            log.debug('these are final args - ', modifiedArgs);
+            const response = await REQUEST_MANAGER.request({
+                chainId: 'solana:101',
+                walletMessage: modifiedArgs,
+                state: SimulationState.Intercepted,
+                appUrl: window.location.href,
+                id: uuidv4(),
+                accountAddress: provider.publicKey.toString(),
+            });
+
+            log.debug('Continuing to wallet now - ', response);
+
+            if (response.type == Response.Continue) {
+                let params = args;
+                if (response.walletMessage) {
+                    params = response.walletMessage;
+                }
+
+                // sending args by default right now because editing txns isn't allowed
+                return Reflect.apply(target, thisArg, args);
+            }
+            return Reflect.apply(target, thisArg, args);
+        },
+    };
+
+    try {
+        Object.defineProperty(provider, 'signAllTransactions', {
+            value: new Proxy(
+                provider.signAllTransactions,
+                signAndSendTransactionHandler
+            ),
+        });
+
+        Object.defineProperty(provider, 'signAndSendTransaction', {
+            value: new Proxy(
+                provider.signAndSendTransaction,
+                signAndSendTransactionHandler
+            ),
+        });
+
+        Object.defineProperty(provider, 'signTransaction', {
+            value: new Proxy(
+                provider.signTransaction,
+                signAndSendTransactionHandler
+            ),
+        });
+    } catch (err) {
+        log.error('Failed to add proxy to solana - ', err);
+    }
+};
+
 if (window.ethereum) {
     log.debug('QuickWallet: window.ethereum detected, adding proxy.');
 
@@ -347,4 +416,10 @@ handleProxy('window.starknet_argentX.account.execute', 1, (provider) =>
 
 handleProxy('window.starknet_braavos.account.execute', 1, (provider) =>
     addQuickWalletProxyStarknet(provider, STARKNET_WALLETS.braavos)
+);
+
+handleProxy(
+    'window.phantom.solana.signAndSendTransaction',
+    1,
+    addQuickWalletProxySolana
 );

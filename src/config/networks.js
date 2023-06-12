@@ -49,6 +49,14 @@ const NETWORK_CONFIG = {
         type: 'cvm',
         sequencerNetwork: 'SN_MAIN',
     },
+    solana_mainnet: {
+        name: 'Solana',
+        chainId: 'solana:101', //SN_MAINNET
+        scanBaseUrl: 'solscan.io',
+        scanApiKey: '',
+        image: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1595348880',
+        type: 'solana',
+    },
 };
 
 export default NETWORK_CONFIG;

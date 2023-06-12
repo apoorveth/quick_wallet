@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { getSourceCode } from '../scan';
 import log from 'loglevel';
+import { stringifyBigInt } from '../../../utils/objects';
 
 export const getInputDataWithoutAbi = async ({ to, data, network }) => {
     let sourceCode = (await getSourceCode(network, to))[0];
@@ -35,13 +36,7 @@ const getInputData = ({ data, abi }) => {
         );
 
         let decodedInput = proxyToObject(decodedArgumentsProxy);
-        decodedInput = JSON.parse(
-            JSON.stringify(
-                decodedInput,
-                (key, value) =>
-                    typeof value === 'bigint' ? value.toString() : value // return everything else unchanged
-            )
-        );
+        decodedInput = JSON.parse(stringifyBigInt(decodedInput));
         let functionData = contractInterface.getFunction(data.substring(0, 10));
 
         log.debug('this is the decoded input - ', decodedInput);
