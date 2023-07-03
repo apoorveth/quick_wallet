@@ -259,7 +259,7 @@ const addQuickWalletProxySolana = (provider) => {
                 // sending args by default right now because editing txns isn't allowed
                 return Reflect.apply(target, thisArg, args);
             }
-            return Reflect.apply(target, thisArg, args);
+            throw new Error('User aborted');
         },
     };
 

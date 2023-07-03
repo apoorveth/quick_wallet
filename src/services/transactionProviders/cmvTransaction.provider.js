@@ -112,6 +112,10 @@ export const simulate = async ({ network, interceptedTransaction }) => {
             interceptedTransaction.walletMessage[0]
         ),
     });
+    log.debug(
+        'this is the wallet message - ',
+        interceptedTransaction.walletMessage[0]
+    );
     return await axios.post(
         `${process.env.REACT_APP_BACKEND_BASE_URL}/v1/simulator/simulate`,
         {
