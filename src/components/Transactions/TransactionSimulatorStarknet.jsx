@@ -44,6 +44,7 @@ import mixpanel from 'mixpanel-browser';
 import _ from 'lodash';
 import * as starknet from 'starknet';
 import log from 'loglevel';
+import toast, { Toaster } from 'react-hot-toast';
 
 const OpacityContainer = styled.div`
     position: fixed;
@@ -530,17 +531,60 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
         );
     };
 
+    const validateCodeChange = (code) => {
+        if (!network.includes('solana')) return true;
+        let currentCode = JSON.parse(decodedInputData);
+        let newCode = JSON.parse(code);
+        let result = contractAbi.map((abi, index) => {
+            if (_.isEmpty(abi)) {
+                // compare to objects using lodash
+                if (!_.isEqual(currentCode[index], newCode[index])) {
+                    return false;
+                }
+            } else {
+                // IDL program
+                console.log('these are idl programs - ', currentCode, newCode);
+                if (
+                    !_.isEqual(
+                        currentCode[index].decodedInput.accounts,
+                        newCode[index].decodedInput.accounts
+                    )
+                ) {
+                    return false;
+                }
+            }
+            return true;
+        });
+        // all elements of result must be true
+        return result.every((element) => element);
+    };
+
     const decodedInputChange = (code) => {
         if (inputDecodeFailed) return;
         let data = JSON.parse(simulatorData);
-        data.calldata = getOutputDataFromInput({
+        let outputdata = getOutputDataFromInput({
             functionName: contractFunctionName,
             inputStr: code,
             abi: contractAbi,
             network,
+            simulatorData: data,
         });
+
+        const codeChangeValid = validateCodeChange(code);
+        if (!codeChangeValid) {
+            toast.error('You can only edit args of IDL programs');
+            return;
+        }
+        if (network.includes('solana')) {
+            outputdata.then((res) => {
+                updateSimulatorData(JSON.stringify(res, null, 4));
+            });
+        } else {
+            data.calldata = outputdata;
+            updateSimulatorData(JSON.stringify(data, null, 4));
+        }
+
         setDecodedInputData(code);
-        updateSimulatorData(JSON.stringify(data, null, 4));
     };
 
     const simulate = async (type) => {
@@ -848,6 +892,7 @@ const TransactionSimulatorStarknet = ({ closeSimulator, hash, fullScreen }) => {
                         />
                     </EditorContainer>
                 </DetailsScrollContainer>
+                <Toaster></Toaster>
             </SimulatorContainer>
         </>
     );

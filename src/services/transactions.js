@@ -32,12 +32,14 @@ export const getOutputDataFromInput = ({
     inputStr,
     abi,
     network,
+    simulatorData,
 }) => {
     const provider = getTransactionProvider(network);
     return provider.getOutputDataFromInput({
         functionName,
         inputStr,
         abi,
+        simulatorData,
     });
 };
 
