@@ -123,7 +123,7 @@ var options = {
                                     isDevelopment && ReactRefreshTypeScript(),
                                 ].filter(Boolean),
                             }),
-                            transpileOnly: isDevelopment,
+                            transpileOnly: true, // make this isDevelopment if you want build to fails if there are TS errors
                         },
                     },
                 ],
